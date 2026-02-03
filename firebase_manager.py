@@ -276,11 +276,11 @@ class FirebaseManager:
     def registrar_alquiler(self, datos: Dict[str, Any]) -> Optional[str]:
         """
         Registra un nuevo alquiler con soporte de modalidades:
-          horas (default), volumen, fijo.
+        horas (default), volumen, fijo.
         Campos esperados según modalidad:
-          horas: horas, precio_por_hora
-          volumen: volumen_generado, precio_por_unidad, unidad_volumen (opcional)
-          fijo: monto_fijo
+        horas: horas, precio_por_hora
+        volumen: volumen_generado, precio_por_unidad, unidad_volumen (opcional)
+        fijo: monto_fijo
         Siempre guarda 'monto' calculado y 'modalidad_facturacion'.
         """
         try:
@@ -302,6 +302,16 @@ class FirebaseManager:
                 pass
 
             datos = self._agregar_fecha_ano_mes(datos)
+
+            # ========== CAMPOS REQUERIDOS PARA DASHBOARD ==========
+            # Asegurar que tenga proyecto_id (por defecto 8)
+            if 'proyecto_id' not in datos or datos['proyecto_id'] is None:
+                datos['proyecto_id'] = getattr(self, 'proyecto_id', 8)
+            
+            # Asegurar que tenga tipo (alquileres son siempre Ingreso)
+            if 'tipo' not in datos or datos['tipo'] is None:
+                datos['tipo'] = 'Ingreso'
+            # ======================================================
 
             if 'transaccion_id' not in datos:
                 datos['transaccion_id'] = str(uuid.uuid4())
@@ -340,6 +350,16 @@ class FirebaseManager:
                 pass  # ya se limpian horas en helper
 
             datos = self._agregar_fecha_ano_mes(datos)
+
+            # ========== CAMPOS REQUERIDOS PARA DASHBOARD ==========
+            # Asegurar que tenga proyecto_id (conservar original o usar default)
+            if 'proyecto_id' not in datos or datos['proyecto_id'] is None:
+                datos['proyecto_id'] = original.get('proyecto_id') or getattr(self, 'proyecto_id', 8)
+            
+            # Asegurar que tenga tipo (conservar original o usar default)
+            if 'tipo' not in datos or datos['tipo'] is None:
+                datos['tipo'] = original.get('tipo') or 'Ingreso'
+            # ======================================================
 
             self.db.collection('alquileres').document(alquiler_id).update(datos)
             logger.info(f"Alquiler {alquiler_id} actualizado (modalidad={modalidad}) monto={monto:,.2f}")
@@ -1232,22 +1252,76 @@ class FirebaseManager:
         """
         Obtiene una lista de facturas (alquileres) pendientes de pago de un cliente,
         ordenadas por fecha ascendente.
+        
+        MODIFICADO: 
+        - Maneja cliente_id como string e int
+        - Maneja documentos sin campo 'pagado' (los trata como pendientes)
         """
         try:
-            query = (
-                self.db.collection("alquileres")
-                .where(filter=FieldFilter("cliente_id", "==", cliente_id))
-                .where(filter=FieldFilter("pagado", "==", False))
-                .order_by("fecha")
-            )
-            docs = list(query.stream())
             facturas = []
-            for doc in docs:
-                data = doc.to_dict()
-                data["id"] = doc.id
-                facturas.append(data)
-            logger.info(f"Obtenidas {len(facturas)} facturas pendientes para cliente {cliente_id}")
+            seen_ids = set()
+            
+            # Normalizar cliente_id
+            cliente_id_str = str(cliente_id) if cliente_id else None
+            if not cliente_id_str:
+                logger.warning("obtener_facturas_pendientes_cliente: cliente_id vacío")
+                return []
+            
+            # ========== ESTRATEGIA 1: cliente_id como STRING ==========
+            try:
+                query_str = (
+                    self.db.collection("alquileres")
+                    .where(filter=FieldFilter("cliente_id", "==", cliente_id_str))
+                    .order_by("fecha")
+                )
+                docs_str = list(query_str.stream())
+                
+                for doc in docs_str:
+                    data = doc.to_dict()
+                    data["id"] = doc.id
+                    
+                    # Considerar pendiente si:
+                    # 1. No tiene campo 'pagado' (documentos viejos)
+                    # 2. Tiene 'pagado' = False
+                    # 3. Tiene 'pagado' = None
+                    pagado = data.get("pagado")
+                    
+                    if pagado is None or pagado == False:
+                        if doc.id not in seen_ids:
+                            facturas.append(data)
+                            seen_ids.add(doc.id)
+            except Exception as e:
+                logger.debug(f"Query con cliente_id STRING falló: {e}")
+            
+            # ========== ESTRATEGIA 2: cliente_id como INT ==========
+            try:
+                cliente_id_int = int(cliente_id_str)
+                query_int = (
+                    self.db.collection("alquileres")
+                    .where(filter=FieldFilter("cliente_id", "==", cliente_id_int))
+                    .order_by("fecha")
+                )
+                docs_int = list(query_int.stream())
+                
+                for doc in docs_int:
+                    data = doc.to_dict()
+                    data["id"] = doc.id
+                    
+                    pagado = data.get("pagado")
+                    
+                    if pagado is None or pagado == False:
+                        if doc.id not in seen_ids:
+                            facturas.append(data)
+                            seen_ids.add(doc.id)
+            except (ValueError, Exception) as e:
+                logger.debug(f"Query con cliente_id INT falló: {e}")
+            
+            # Ordenar por fecha (ya que combinamos dos queries)
+            facturas.sort(key=lambda x: x.get("fecha", ""))
+            
+            logger.info(f"Obtenidas {len(facturas)} facturas pendientes para cliente {cliente_id_str}")
             return facturas
+            
         except Exception as e:
             logger.error(f"Error al obtener facturas pendientes para cliente {cliente_id}: {e}", exc_info=True)
             return []
@@ -1287,6 +1361,7 @@ class FirebaseManager:
         """
         Registra un abono general de un cliente y lo aplica a las facturas pendientes,
         de la más antigua a la más reciente.
+        MODIFICADO: Ahora guarda información de aplicación en el campo transaccion_descripcion.
         """
         try:
             cliente_id = datos_pago["cliente_id"]
@@ -1303,6 +1378,7 @@ class FirebaseManager:
                 return "Este cliente no tiene facturas pendientes de pago."
 
             monto_restante_abono = monto_abonar
+            facturas_aplicadas = []  # ← NUEVO: Para rastrear aplicaciones
 
             for factura in pendientes:
                 if monto_restante_abono <= 0:
@@ -1347,12 +1423,38 @@ class FirebaseManager:
                 self._recalcular_estado_pago_alquiler(alquiler_id)
 
                 monto_restante_abono -= monto_a_aplicar
+                
+                # ========== NUEVO: Registrar factura aplicada ==========
+                descripcion_factura = factura.get("descripcion") or factura.get("conduce") or f"Factura {factura.get('fecha', '')}"
+                porcentaje = (monto_a_aplicar / monto_factura) * 100 if monto_factura > 0 else 0
+                facturas_aplicadas.append({
+                    "descripcion": descripcion_factura,
+                    "monto": monto_a_aplicar,
+                    "porcentaje": porcentaje
+                })
+                # ======================================================
+
+            # ========== NUEVO: Crear descripción de aplicación ==========
+            if len(facturas_aplicadas) == 1:
+                # Aplicado a una sola factura
+                fa = facturas_aplicadas[0]
+                transaccion_desc = f"{fa['descripcion']}"
+            elif len(facturas_aplicadas) > 1:
+                # Aplicado a múltiples facturas
+                descripciones = [f"{fa['descripcion']} ({fa['porcentaje']:.0f}%)" for fa in facturas_aplicadas[:3]]
+                if len(facturas_aplicadas) > 3:
+                    descripciones.append(f"+ {len(facturas_aplicadas) - 3} más")
+                transaccion_desc = " | ".join(descripciones)
+            else:
+                transaccion_desc = "No aplicado (sin facturas pendientes)"
+            # ===========================================================
 
             abono_resumen = {
                 "cliente_id": cliente_id,
                 "fecha": fecha_abono,
                 "monto": monto_abonar,
                 "comentario": comentario,
+                "transaccion_descripcion": transaccion_desc,  # ← NUEVO CAMPO
             }
             if cuenta_id:
                 abono_resumen["cuenta_id"] = cuenta_id
@@ -1361,7 +1463,7 @@ class FirebaseManager:
 
             logger.info(
                 f"Abono general registrado para cliente {cliente_id} por monto {monto_abonar}. "
-                f"Restante sin aplicar: {monto_restante_abono}"
+                f"Restante sin aplicar: {monto_restante_abono}. Aplicado a: {transaccion_desc}"
             )
             return True
 
@@ -1915,78 +2017,107 @@ class FirebaseManager:
         except Exception as e:
             logger.deb
 
-    # --- Dashboard: KPIs --------------------------------------------
+# --- Dashboard: KPIs --------------------------------------------
     def _query_mixto(self, collection_name: str, ano: int, mes: int, proyecto_id, equipo_id=None, tipo: str | None = None):
         """
-        Ejecuta consultas intentando proyecto_id como int y como str, y equipo_id como int y str (si se provee).
-        Devuelve lista de dicts deduplicados por 'id' si existe, o por contenido.
+        Ejecuta consultas RETROCOMPATIBLES:
+        1. Consulta por ano/mes (registros con campos ano/mes)
+        2. Consulta por rango de fecha (registros sin ano/mes)
+        Devuelve lista de dicts deduplicados por 'id'.
         """
+        import calendar
+        
         resultados = []
         seen = set()
 
         def add_docs(q):
             nonlocal resultados, seen
-            for doc in q.stream():
-                d = doc.to_dict()
-                key = d.get("id", doc.id)
-                if key in seen:
-                    continue
-                seen.add(key)
-                resultados.append(d)
+            try:
+                for doc in q.stream():
+                    d = doc.to_dict()
+                    key = d.get("id", doc.id)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    resultados.append(d)
+            except Exception as e:
+                logger.debug(f"add_docs error: {e}")
 
-        base_int = (
-            self.db.collection(collection_name)
-            .where("ano", "==", ano)
-            .where("mes", "==", mes)
-        )
-        base_str = (
-            self.db.collection(collection_name)
-            .where("ano", "==", ano)
-            .where("mes", "==", mes)
-        )
-
-        # proyecto_id int y str
+        # ===== ESTRATEGIA 1: CONSULTA POR ANO/MES (REGISTROS CON CAMPOS ano/mes) =====
         try:
-            add_docs(base_int.where("proyecto_id", "==", int(proyecto_id)))
-        except Exception:
-            pass
-        try:
-            add_docs(base_str.where("proyecto_id", "==", str(proyecto_id)))
-        except Exception:
-            pass
+            # proyecto_id como int
+            try:
+                q_int = (
+                    self.db.collection(collection_name)
+                    .where("ano", "==", ano)
+                    .where("mes", "==", mes)
+                    .where("proyecto_id", "==", int(proyecto_id))
+                )
+                add_docs(q_int)
+            except Exception as e:
+                logger.debug(f"Query ano/mes con proyecto_id int falló: {e}")
+            
+            # proyecto_id como str
+            try:
+                q_str = (
+                    self.db.collection(collection_name)
+                    .where("ano", "==", ano)
+                    .where("mes", "==", mes)
+                    .where("proyecto_id", "==", str(proyecto_id))
+                )
+                add_docs(q_str)
+            except Exception as e:
+                logger.debug(f"Query ano/mes con proyecto_id str falló: {e}")
+                
+        except Exception as e:
+            logger.debug(f"Estrategia 1 (ano/mes) falló completamente: {e}")
 
-        # Si se requiere tipo
+        # ===== ESTRATEGIA 2: CONSULTA POR FECHA (REGISTROS SIN ano/mes) =====
+        try:
+            # Calcular rango de fechas para el mes/año solicitado
+            primer_dia = f"{ano:04d}-{mes:02d}-01"
+            ultimo_dia_mes = calendar.monthrange(ano, mes)[1]
+            ultimo_dia = f"{ano:04d}-{mes:02d}-{ultimo_dia_mes:02d}"
+            
+            # proyecto_id como int
+            try:
+                q_fecha_int = (
+                    self.db.collection(collection_name)
+                    .where("fecha", ">=", primer_dia)
+                    .where("fecha", "<=", ultimo_dia)
+                    .where("proyecto_id", "==", int(proyecto_id))
+                )
+                add_docs(q_fecha_int)
+            except Exception as e:
+                logger.debug(f"Query fecha con proyecto_id int falló: {e}")
+            
+            # proyecto_id como str
+            try:
+                q_fecha_str = (
+                    self.db.collection(collection_name)
+                    .where("fecha", ">=", primer_dia)
+                    .where("fecha", "<=", ultimo_dia)
+                    .where("proyecto_id", "==", str(proyecto_id))
+                )
+                add_docs(q_fecha_str)
+            except Exception as e:
+                logger.debug(f"Query fecha con proyecto_id str falló: {e}")
+                
+        except Exception as e:
+            logger.debug(f"Estrategia 2 (fecha) falló completamente: {e}")
+
+        # ===== FILTRAR POR TIPO (SI SE REQUIERE) =====
         if tipo:
             resultados = [d for d in resultados if d.get("tipo") == tipo]
 
-        # Si se filtra por equipo_id, relanzar con filtros
+        # ===== FILTRAR POR EQUIPO_ID (SI SE PROVEE) =====
         if equipo_id is not None:
-            eq_result = []
-            seen_eq = set()
-            for pid in (int(proyecto_id), str(proyecto_id)):
-                for eid in (self._to_str(equipo_id), self._to_str(equipo_id)):
-                    try:
-                        q = (
-                            self.db.collection(collection_name)
-                            .where("ano", "==", ano)
-                            .where("mes", "==", mes)
-                            .where("proyecto_id", "==", pid)
-                            .where("equipo_id", "==", eid)
-                        )
-                        if tipo:
-                            q = q.where("tipo", "==", tipo)
-                        for doc in q.stream():
-                            d = doc.to_dict()
-                            key = d.get("id", doc.id)
-                            if key in seen_eq:
-                                continue
-                            seen_eq.add(key)
-                            eq_result.append(d)
-                    except Exception:
-                        continue
-            return eq_result
+            eq_str = self._to_str(equipo_id)
+            resultados = [d for d in resultados if self._to_str(d.get("equipo_id")) == eq_str]
 
+        logger.info(f"_query_mixto({collection_name}, {ano}/{mes}, tipo={tipo}): {len(resultados)} registros encontrados")
         return resultados
+
 
     def obtener_estadisticas_dashboard(self, filtros: dict) -> dict:
         """
