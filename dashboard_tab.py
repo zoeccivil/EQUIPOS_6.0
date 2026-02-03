@@ -16,7 +16,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from datetime import datetime
 from firebase_manager import FirebaseManager
-from app_theme import AppTheme, KPICard
 from app_theme_modern import ModernTheme
 from ui_components import StatCard, StatusBadge, ModernCard
 import logging

@@ -193,7 +193,6 @@ class StatCard(QFrame):
             }}
         """)
         main_layout.addWidget(color_bar)
-        main_layout.setContentsMargins(20, 20, 20, 0)
         
         # Sombra sutil
         shadow = QGraphicsDropShadowEffect()

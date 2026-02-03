@@ -165,7 +165,7 @@ class AppGUI(QMainWindow):
         brand_layout.setContentsMargins(0, 0, 0, 0)
         brand_layout.setSpacing(12)
         
-        # Logo "Z" en círculo amarillo
+        # Logo "Z" en círculo amarillo (Represents ZOEC)
         logo_label = QLabel("Z")
         logo_label.setFixedSize(40, 40)
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
