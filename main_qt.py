@@ -1,6 +1,7 @@
 """
-Punto de entrada principal para EQUIPOS 4.0
+Punto de entrada principal para EQUIPOS 6.0
 Adaptado para trabajar con Firebase en lugar de SQLite
+Diseño moderno "Tierra & Asfalto"
 
 Comportamiento específico:
 - Busca credenciales de Firebase en:

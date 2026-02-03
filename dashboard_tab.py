@@ -1,7 +1,8 @@
 """
-Dashboard Tab para EQUIPOS 4.0
-Refactor con AppTheme (Industrial Dark Mode)
-- KPICard para métricas
+Dashboard Tab para EQUIPOS 6.0
+Diseño moderno con sistema "Tierra & Asfalto"
+- StatCard para métricas con iconos SVG
+- StatusBadge para estados en tabla
 - Tabla de alquileres recientes
 - Filtrado por Año, Mes y Equipo (equipo_id en userData)
 - Cálculos de tops basados en ingresos_data

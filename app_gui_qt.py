@@ -1,7 +1,7 @@
 """
-Interfaz gráfica principal para EQUIPOS 4.0
-Adaptada para trabajar con Firebase en lugar de SQLite
-REFACTORIZADA con Sidebar + QStackedWidget navigation (Industrial Dark Mode)
+Interfaz gráfica principal para EQUIPOS 6.0
+Adaptada para trabajar con Firebase
+Diseño moderno "Tierra & Asfalto" con Sidebar + QStackedWidget navigation
 """
 
 from PyQt6.QtWidgets import (
@@ -57,8 +57,9 @@ APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 
 class AppGUI(QMainWindow):
     """
-    Ventana principal de la aplicación EQUIPOS 5.0.
-    Gestiona vistas, menús y configuración general usando Sidebar + QStackedWidget.
+    Ventana principal de la aplicación EQUIPOS 6.0.
+    Gestiona vistas modernas, menús y configuración usando Sidebar + QStackedWidget.
+    Diseño "Tierra & Asfalto" - Modern web-like interface.
     """
 
     def __init__(
