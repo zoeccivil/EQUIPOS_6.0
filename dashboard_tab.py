@@ -9,13 +9,15 @@ Refactor con AppTheme (Industrial Dark Mode)
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox,
-    QGroupBox, QTableWidget, QTableWidgetItem
+    QGroupBox, QTableWidget, QTableWidgetItem, QFrame
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from datetime import datetime
 from firebase_manager import FirebaseManager
 from app_theme import AppTheme, KPICard
+from app_theme_modern import ModernTheme
+from ui_components import StatCard, StatusBadge, ModernCard
 import logging
 
 logger = logging.getLogger(__name__)
@@ -67,70 +69,120 @@ class DashboardTab(QWidget):
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(16)
-        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(24, 24, 24, 24)
 
-        # === Filtros ===
-        filtros_group = QGroupBox("Filtros")
-        filtros_layout = QHBoxLayout(filtros_group)
+        # === Filtros en tarjeta moderna ===
+        filtros_card = ModernCard(padding=16)
+        filtros_layout = QHBoxLayout()
 
         filtros_layout.addWidget(QLabel("Año:"))
         self.combo_anio = QComboBox()
+        self.combo_anio.setProperty("class", "secondary")
         filtros_layout.addWidget(self.combo_anio)
 
         filtros_layout.addWidget(QLabel("Mes:"))
         self.combo_mes = QComboBox()
+        self.combo_mes.setProperty("class", "secondary")
         self.combo_mes.addItems(self.meses_mapa.keys())
         filtros_layout.addWidget(self.combo_mes)
 
         filtros_layout.addWidget(QLabel("Equipo:"))
         self.combo_equipo = QComboBox()
+        self.combo_equipo.setProperty("class", "secondary")
         filtros_layout.addWidget(self.combo_equipo)
         filtros_layout.addStretch()
 
-        main_layout.addWidget(filtros_group, stretch=0)
+        filtros_card.add_layout(filtros_layout)
+        main_layout.addWidget(filtros_card, stretch=0)
 
-        # === Grid de Tarjetas KPI ===
+        # === Grid de Tarjetas KPI Modernas (4 columnas) ===
         grid_layout = QGridLayout()
-        grid_layout.setSpacing(16)
+        grid_layout.setSpacing(20)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.card_ingresos = KPICard("Ingresos Totales", "RD$ 0.00", color=AppTheme.COLORS["success"])
+        # 4 KPIs principales con iconos y colores
+        self.card_ingresos = StatCard(
+            "Ingresos Totales", 
+            "RD$ 0.00", 
+            icon_name="attach_money",
+            accent_color=ModernTheme.COLORS["secondary"]
+        )
         grid_layout.addWidget(self.card_ingresos, 0, 0)
 
-        self.card_pendiente = KPICard("Pendiente Cobro", "RD$ 0.00", color=AppTheme.COLORS["warning"])
+        self.card_pendiente = StatCard(
+            "Pendiente Cobro", 
+            "RD$ 0.00", 
+            icon_name="pending_actions",
+            accent_color=ModernTheme.COLORS["primary"]
+        )
         grid_layout.addWidget(self.card_pendiente, 0, 1)
 
-        self.card_utilidad = KPICard("Utilidad Neta", "RD$ 0.00", color=AppTheme.COLORS["primary"])
+        self.card_utilidad = StatCard(
+            "Utilidad Neta", 
+            "RD$ 0.00", 
+            icon_name="trending_up",
+            accent_color="#10B981"  # Verde
+        )
         grid_layout.addWidget(self.card_utilidad, 0, 2)
 
-        self.card_ocupacion = KPICard("Ocupación Equipos", "0.00%", color=AppTheme.COLORS["info"] if "info" in AppTheme.COLORS else AppTheme.COLORS["primary"])
+        self.card_ocupacion = StatCard(
+            "Ocupación Equipos", 
+            "0.00%", 
+            icon_name="precision_manufacturing",
+            accent_color="#6366F1"  # Morado
+        )
         grid_layout.addWidget(self.card_ocupacion, 0, 3)
 
-        # Tops
-        self.card_top_equipo = KPICard("Equipo Más Rentable", "N/A")
+        # Segunda fila: Tops (2 columnas cada uno)
+        self.card_top_equipo = StatCard(
+            "Equipo Más Rentable", 
+            "N/A",
+            icon_name="agriculture",
+            accent_color=ModernTheme.COLORS["primary"]
+        )
         grid_layout.addWidget(self.card_top_equipo, 1, 0, 1, 2)
 
-        self.card_top_operador = KPICard("Operador con Más Horas", "N/A")
+        self.card_top_operador = StatCard(
+            "Operador con Más Horas", 
+            "N/A",
+            icon_name="person",
+            accent_color=ModernTheme.COLORS["secondary"]
+        )
         grid_layout.addWidget(self.card_top_operador, 1, 2, 1, 2)
 
         main_layout.addLayout(grid_layout, stretch=0)
 
-        # === Tabla de Alquileres Recientes ===
+        # === Tabla de Alquileres Recientes en tarjeta moderna ===
+        tabla_card = ModernCard(title="Actividad Reciente", padding=0)
+        
+        # Container interno para la tabla
+        tabla_container = QWidget()
+        tabla_layout = QVBoxLayout(tabla_container)
+        tabla_layout.setContentsMargins(0, 0, 0, 0)
+        tabla_layout.setSpacing(0)
+        
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
             "ID", "Equipo", "Cliente", "Fecha", "Monto", "Estado", ""
         ])
+        
+        # Configuración de tabla moderna
         header = self.table.horizontalHeader()
         header.setStretchLastSection(True)
         self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(True)
+        self.table.setAlternatingRowColors(False)  # Usamos hover en su lugar
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setWordWrap(False)
-        self.table.setShowGrid(True)
+        self.table.setShowGrid(False)  # Sin grillas verticales
         self.table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        main_layout.addWidget(self.table, stretch=1)
+        
+        tabla_layout.addWidget(self.table)
+        tabla_card.add_widget(tabla_container)
+        
+        main_layout.addWidget(tabla_card, stretch=1)
 
         # Conexiones
         self.combo_anio.currentIndexChanged.connect(self.refrescar_datos)
@@ -278,21 +330,32 @@ class DashboardTab(QWidget):
             self.table.setItem(r, 4, QTableWidgetItem(monto_txt))
             self.table.item(r, 4).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
+            # Estado con StatusBadge moderno
             estado = str(d.get("estado", "")).lower()
-            estado_item = QTableWidgetItem(estado.capitalize() if estado else "")
+            badge = StatusBadge()
+            
             if estado == "pagado":
-                estado_item.setForeground(QColor("#42BE65"))
+                badge.setPaid()
             elif estado == "pendiente":
-                estado_item.setForeground(QColor("#F1C21B"))
+                badge.setPending()
             elif estado == "vencido":
-                estado_item.setForeground(QColor("#FF8389"))
-            self.table.setItem(r, 5, estado_item)
+                badge.setOverdue()
+            else:
+                badge.setStatus(estado.capitalize() if estado else "N/A", "default")
+            
+            # Centrar el badge en la celda
+            badge_container = QWidget()
+            badge_layout = QHBoxLayout(badge_container)
+            badge_layout.setContentsMargins(8, 4, 8, 4)
+            badge_layout.addWidget(badge)
+            badge_layout.addStretch()
+            
+            self.table.setCellWidget(r, 5, badge_container)
 
             self.table.setItem(r, 6, QTableWidgetItem("⋯"))
 
         self.table.resizeColumnsToContents()
         for r in range(self.table.rowCount()):
-            for c in [4, 5]:
-                item = self.table.item(r, c)
-                if item:
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item = self.table.item(r, 4)
+            if item:
+                item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)

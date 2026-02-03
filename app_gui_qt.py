@@ -35,6 +35,9 @@ from storage_manager import StorageManager  # Importar StorageManager
 from config_manager import cargar_configuracion, guardar_configuracion
 from theme_manager import ThemeManager
 from app_theme import AppTheme
+from app_theme_modern import ModernTheme
+from ui_components import SidebarButton, TopBar
+from icons import get_icon
 
 # Importar tabs (ahora serán vistas en el stack)
 from dashboard_tab import DashboardTab
@@ -47,7 +50,7 @@ from dialogos.estado_cuenta_dialog import EstadoCuentaDialog
 logger = logging.getLogger(__name__)
 
 # Constantes de aplicación
-APP_VERSION = "5.0"
+APP_VERSION = "6.0"
 APP_NAME = "EQUIPOS"
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 
@@ -86,6 +89,9 @@ class AppGUI(QMainWindow):
         # Configuración de ventana
         self.setWindowTitle(APP_FULL_NAME)
         self.resize(1400, 800)
+        
+        # Aplicar tema moderno
+        self.setStyleSheet(ModernTheme.get_stylesheet())
 
         # Crear interfaz con sidebar navigation
         self._crear_interfaz_principal()
@@ -99,6 +105,7 @@ class AppGUI(QMainWindow):
     def _crear_interfaz_principal(self):
         """
         Crea la interfaz principal con Sidebar (izquierda) y QStackedWidget (derecha)
+        Estilo moderno "Tierra & Asfalto"
         """
         # Widget central
         central_widget = QWidget()
@@ -113,23 +120,37 @@ class AppGUI(QMainWindow):
         self.sidebar = self._crear_sidebar()
         main_layout.addWidget(self.sidebar)
         
-        # Crear QStackedWidget para las vistas
+        # Crear contenedor derecho con TopBar y QStackedWidget
+        content_container = QWidget()
+        content_layout = QVBoxLayout(content_container)
+        content_layout.setSpacing(0)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # TopBar
+        self.top_bar = TopBar("Dashboard", show_search=True)
+        content_layout.addWidget(self.top_bar)
+        
+        # QStackedWidget para las vistas
         self.stackedWidget = QStackedWidget()
-        main_layout.addWidget(self.stackedWidget)
+        self.stackedWidget.setStyleSheet(f"background-color: {ModernTheme.COLORS['bg_body']};")
+        content_layout.addWidget(self.stackedWidget)
+        
+        main_layout.addWidget(content_container)
         
         # Crear las vistas (antiguos tabs)
         self._crear_vistas()
     
     def _crear_sidebar(self):
         """
-        Crea el sidebar de navegación con estilo Industrial Dark
+        Crea el sidebar de navegación moderno con estilo "Tierra & Asfalto"
         """
         sidebar = QFrame()
-        sidebar.setFixedWidth(250)
+        sidebar.setFixedWidth(260)
+        sidebar.setProperty("class", "sidebar")
         sidebar.setStyleSheet(f"""
             QFrame {{
-                background-color: {AppTheme.COLORS["bg_surface"]};
-                border-right: 1px solid {AppTheme.COLORS["border"]};
+                background-color: {ModernTheme.COLORS['bg_sidebar']};
+                border-right: 1px solid #374151;
             }}
         """)
         
@@ -137,94 +158,124 @@ class AppGUI(QMainWindow):
         layout.setSpacing(8)
         layout.setContentsMargins(16, 24, 16, 16)
         
-        # Logo/Título
-        title_label = QLabel(APP_FULL_NAME)
-        title_font = QFont("Inter", 20)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-        title_label.setStyleSheet(f"color: {AppTheme.COLORS['primary']}; padding: 16px 0;")
-        layout.addWidget(title_label)
+        # === BRAND HEADER ===
+        brand_container = QWidget()
+        brand_layout = QHBoxLayout(brand_container)
+        brand_layout.setContentsMargins(0, 0, 0, 0)
+        brand_layout.setSpacing(12)
+        
+        # Logo "Z" en círculo amarillo
+        logo_label = QLabel("Z")
+        logo_label.setFixedSize(40, 40)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {ModernTheme.COLORS['primary']};
+                color: {ModernTheme.COLORS['primary_text']};
+                border-radius: 20px;
+                font-size: 20px;
+                font-weight: 700;
+            }}
+        """)
+        brand_layout.addWidget(logo_label)
+        
+        # Texto del brand
+        brand_text_container = QWidget()
+        brand_text_layout = QVBoxLayout(brand_text_container)
+        brand_text_layout.setContentsMargins(0, 0, 0, 0)
+        brand_text_layout.setSpacing(0)
+        
+        brand_title = QLabel("ZOEC CIVIL")
+        brand_title.setStyleSheet(f"""
+            color: {ModernTheme.COLORS['text_sidebar']};
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        """)
+        brand_text_layout.addWidget(brand_title)
+        
+        brand_subtitle = QLabel("Equipos Pesados")
+        brand_subtitle.setStyleSheet(f"""
+            color: {ModernTheme.COLORS['text_sidebar_muted']};
+            font-size: 11px;
+        """)
+        brand_text_layout.addWidget(brand_subtitle)
+        
+        brand_layout.addWidget(brand_text_container)
+        brand_layout.addStretch()
+        
+        layout.addWidget(brand_container)
         
         # Separador
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background-color: {AppTheme.COLORS['border']};")
+        separator.setStyleSheet(f"background-color: #374151; border: none;")
         separator.setFixedHeight(1)
         layout.addWidget(separator)
         
         layout.addSpacing(16)
         
-        # Botones de navegación
+        # === BOTONES DE NAVEGACIÓN ===
         self.nav_buttons = []
         
         nav_items = [
-            ("Dashboard", 0, "📊"),
-            ("Alquileres", 1, "📋"),
-            ("Gastos", 2, "💰"),
-            ("Pagos", 3, "💳")
+            ("Dashboard", 0, "dashboard"),
+            ("Alquileres", 1, "agriculture"),
+            ("Gastos", 2, "payments"),
+            ("Pagos Operadores", 3, "person")
         ]
         
-        for text, index, icon in nav_items:
-            btn = self._crear_boton_navegacion(f"{icon}  {text}", index)
+        for text, index, icon_name in nav_items:
+            btn = SidebarButton(text, icon_name)
+            btn.clicked.connect(lambda checked=False, i=index: self._cambiar_vista(i))
             self.nav_buttons.append(btn)
             layout.addWidget(btn)
         
         layout.addStretch()
         
+        # === FOOTER: CONFIGURACIÓN Y SALIR ===
+        footer_separator = QFrame()
+        footer_separator.setFrameShape(QFrame.Shape.HLine)
+        footer_separator.setStyleSheet(f"background-color: #374151; border: none;")
+        footer_separator.setFixedHeight(1)
+        layout.addWidget(footer_separator)
+        
+        layout.addSpacing(8)
+        
+        # Botón Configuración
+        settings_btn = SidebarButton("Configuración", "settings")
+        settings_btn.setCheckable(False)
+        settings_btn.clicked.connect(self._ver_configuracion)
+        layout.addWidget(settings_btn)
+        
         # Versión en la parte inferior
         version_label = QLabel(f"Versión {APP_VERSION}")
-        version_label.setStyleSheet(f"color: {AppTheme.COLORS['text_secondary']}; font-size: 11px;")
+        version_label.setStyleSheet(f"""
+            color: {ModernTheme.COLORS['text_sidebar_muted']};
+            font-size: 10px;
+            padding: 8px 0;
+        """)
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(version_label)
         
         return sidebar
     
-    def _crear_boton_navegacion(self, text: str, index: int):
-        """
-        Crea un botón de navegación para el sidebar
-        """
-        btn = QPushButton(text)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setCheckable(True)
-        btn.setMinimumHeight(48)
-        
-        # Estilo del botón
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {AppTheme.COLORS["text_secondary"]};
-                border: none;
-                border-radius: 6px;
-                padding: 12px 16px;
-                text-align: left;
-                font-size: 14px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                background-color: {AppTheme.COLORS["bg_input"]};
-                color: {AppTheme.COLORS["text_primary"]};
-            }}
-            QPushButton:checked {{
-                background-color: {AppTheme.COLORS["primary"]};
-                color: white;
-                font-weight: 600;
-            }}
-        """)
-        
-        # Conectar el botón para cambiar la vista (capture index by value)
-        btn.clicked.connect(lambda checked=False, i=index: self._cambiar_vista(i))
-        
-        return btn
     
     def _cambiar_vista(self, index: int):
         """
         Cambia la vista actual del QStackedWidget y actualiza el estado de los botones
+        y el título del TopBar
         """
         self.stackedWidget.setCurrentIndex(index)
         
         # Actualizar estado de botones (solo uno activo)
         for i, btn in enumerate(self.nav_buttons):
             btn.setChecked(i == index)
+        
+        # Actualizar título del TopBar
+        titles = ["Dashboard", "Alquileres", "Gastos de Equipos", "Pagos a Operadores"]
+        if 0 <= index < len(titles):
+            self.top_bar.set_title(titles[index])
     
     def _crear_vistas(self):
         """
