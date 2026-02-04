@@ -1,7 +1,7 @@
 """
-Interfaz gráfica principal para EQUIPOS 4.0
-Adaptada para trabajar con Firebase en lugar de SQLite
-REFACTORIZADA con Sidebar + QStackedWidget navigation (Industrial Dark Mode)
+Interfaz gráfica principal para EQUIPOS 6.0
+Adaptada para trabajar con Firebase
+Diseño moderno "Tierra & Asfalto" con Sidebar + QStackedWidget navigation
 """
 
 from PyQt6.QtWidgets import (
@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QStackedWidget,
     QFrame,
+    QScrollArea,
 )
 from PyQt6.QtGui import QAction, QFont
 from PyQt6.QtCore import QTimer, Qt
@@ -28,6 +29,13 @@ from datetime import datetime
 import sys
 import os
 import logging
+# ========== AGREGAR ESTOS IMPORTS ==========
+from app_theme_modern import ModernTheme
+from ui_components import (
+    SidebarButton, BrandHeader, TopBar, ModernCard
+)
+from icons_material import get_material_icon
+from PyQt6.QtCore import QSize
 
 from firebase_manager import FirebaseManager
 from backup_manager import BackupManager
@@ -35,6 +43,9 @@ from storage_manager import StorageManager  # Importar StorageManager
 from config_manager import cargar_configuracion, guardar_configuracion
 from theme_manager import ThemeManager
 from app_theme import AppTheme
+from app_theme_modern import ModernTheme
+from ui_components import SidebarButton, TopBar
+from icons import get_icon
 
 # Importar tabs (ahora serán vistas en el stack)
 from dashboard_tab import DashboardTab
@@ -47,15 +58,16 @@ from dialogos.estado_cuenta_dialog import EstadoCuentaDialog
 logger = logging.getLogger(__name__)
 
 # Constantes de aplicación
-APP_VERSION = "5.0"
+APP_VERSION = "6.0"
 APP_NAME = "EQUIPOS"
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 
 
 class AppGUI(QMainWindow):
     """
-    Ventana principal de la aplicación EQUIPOS 5.0.
-    Gestiona vistas, menús y configuración general usando Sidebar + QStackedWidget.
+    Ventana principal de la aplicación EQUIPOS 6.0.
+    Gestiona vistas modernas, menús y configuración usando Sidebar + QStackedWidget.
+    Diseño "Tierra & Asfalto" - Modern web-like interface.
     """
 
     def __init__(
@@ -67,6 +79,15 @@ class AppGUI(QMainWindow):
         parent=None,
     ):
         super().__init__(parent)
+        
+        # ========== APLICAR TEMA MODERNO ==========
+        self.setStyleSheet(ModernTheme.get_stylesheet())
+        
+        self.setWindowTitle("EQUIPOS 6.0 - Sistema de Gestión")
+        self.setMinimumSize(1400, 850)
+
+        # Maximizar ventana al iniciar
+        self.showMaximized()
 
         # Gestores inyectados
         self.fm: FirebaseManager = firebase_manager
@@ -83,22 +104,221 @@ class AppGUI(QMainWindow):
         self.subcategorias_mapa: dict[str, str] = {}
         self.proyectos_mapa: dict[str, str] = {}
 
-        # Configuración de ventana
-        self.setWindowTitle(APP_FULL_NAME)
-        self.resize(1400, 800)
+        # ========== INICIALIZAR ESTRUCTURAS MODERNAS ==========
+        # IMPORTANTE: Inicializar ANTES de crear la UI
+        self.nav_buttons: dict = {}  # ✅ Diccionario para botones del sidebar
+        self.vistas: dict = {}       # ✅ Diccionario para mapear vistas a índices
 
-        # Crear interfaz con sidebar navigation
-        self._crear_interfaz_principal()
-        self._crear_menu()
+        # ========== CREAR INTERFAZ MODERNA ==========
+        self._setup_modern_ui()
+        
+        # Cargar datos
+        #self._cargar_mapas_y_poblar_tabs()
 
         # Cargar datos iniciales
         QTimer.singleShot(100, self._cargar_datos_iniciales)
+
+    def _setup_modern_ui(self):
+        """
+        Configura la interfaz moderna con sidebar lateral.
+        Layout: Sidebar (260px) + Content Area
+        """
+        # Widget central
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        # Layout principal horizontal (sin márgenes)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # ========== SIDEBAR (260px fijo) ==========
+        self.sidebar = self._crear_sidebar()
+        main_layout.addWidget(self.sidebar)
+        
+        # ========== CONTENT AREA ==========
+        content_area = QWidget()
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+        
+        # TopBar
+        self.topbar = TopBar("Dashboard", show_search=True)
+        self.topbar.searchRequested.connect(self._on_search)
+        content_layout.addWidget(self.topbar)
+        
+        # QStackedWidget para las vistas
+        self.stackedWidget = QStackedWidget()  # ← SIN GUIÓN BAJO
+        self.stackedWidget.setStyleSheet(f"""
+            QStackedWidget {{
+                background-color: {ModernTheme.COLORS['bg_body']};
+            }}
+        """)
+        content_layout.addWidget(self.stackedWidget)
+        
+        main_layout.addWidget(content_area)
+        
+        # ========== CREAR VISTAS ==========
+        self._crear_vistas()
+
+   
+    def _crear_vistas(self):
+        """Crea las vistas y las agrega al QStackedWidget"""
+        
+        # ========== VISTA: DASHBOARD ==========
+        try:
+            from dashboard_tab import DashboardTab
+            self.dashboard_tab = DashboardTab(self.fm, self.config, self.sm)
+            if hasattr(self.dashboard_tab, 'recargar_dashboard'):
+                self.dashboard_tab.recargar_dashboard.connect(self._refrescar_dashboard)
+            scroll_dashboard = QScrollArea()
+            scroll_dashboard.setWidgetResizable(True)
+            scroll_dashboard.setWidget(self.dashboard_tab)
+            scroll_dashboard.setStyleSheet("QScrollArea { border: none; }")
+            self.stackedWidget.addWidget(scroll_dashboard)
+            self.vistas = {"vista_dashboard": 0}
+        except Exception as e:
+            print(f"Error creando Dashboard: {e}")
+            placeholder = QLabel("Dashboard en construcción")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.stackedWidget.addWidget(placeholder)
+            self.vistas = {"vista_dashboard": 0}
+        
+        # ========== VISTA: ALQUILERES ==========
+        try:
+            from registro_alquileres_tab import RegistroAlquileresTab
+            self.alquileres_tab = RegistroAlquileresTab(self.fm, self.config)
+            if hasattr(self.alquileres_tab, 'recargar_dashboard'):
+                self.alquileres_tab.recargar_dashboard.connect(self._refrescar_dashboard)
+            scroll_alquileres = QScrollArea()
+            scroll_alquileres.setWidgetResizable(True)
+            scroll_alquileres.setWidget(self.alquileres_tab)
+            scroll_alquileres.setStyleSheet("QScrollArea { border: none; }")
+            self.stackedWidget.addWidget(scroll_alquileres)
+            self.vistas["vista_alquileres"] = 1
+        except Exception as e:
+            print(f"Error creando Alquileres: {e}")
+            placeholder = QLabel("Alquileres en construcción")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.stackedWidget.addWidget(placeholder)
+            self.vistas["vista_alquileres"] = 1
+        
+        # ========== VISTA: GASTOS ==========
+        try:
+            from gastos_tab import GastosTab
+            # ✅ CORREGIDO: Con todos los parámetros
+            self.gastos_tab = GastosTab(
+                self.fm, 
+                self.config, 
+                self.sm,
+                self.equipos_mapa, 
+                self.cuentas_mapa,
+                self.categorias_mapa, 
+                self.subcategorias_mapa
+            )
+            if hasattr(self.gastos_tab, 'recargar_dashboard'):
+                self.gastos_tab.recargar_dashboard.connect(self._refrescar_dashboard)
+            scroll_gastos = QScrollArea()
+            scroll_gastos.setWidgetResizable(True)
+            scroll_gastos.setWidget(self.gastos_tab)
+            scroll_gastos.setStyleSheet("QScrollArea { border: none; }")
+            self.stackedWidget.addWidget(scroll_gastos)
+            self.vistas["vista_gastos"] = 2
+        except Exception as e:
+            print(f"Error creando Gastos: {e}")
+            placeholder = QLabel("Gastos en construcción")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.stackedWidget.addWidget(placeholder)
+            self.vistas["vista_gastos"] = 2
+        
+        # ========== VISTA: PAGOS OPERADORES ==========
+        try:
+            from pagos_operadores_tab import PagosOperadoresTab
+            self.pagos_tab = PagosOperadoresTab(self.fm, self.config)
+            scroll_pagos = QScrollArea()
+            scroll_pagos.setWidgetResizable(True)
+            scroll_pagos.setWidget(self.pagos_tab)
+            scroll_pagos.setStyleSheet("QScrollArea { border: none; }")
+            self.stackedWidget.addWidget(scroll_pagos)
+            self.vistas["vista_pagos_operadores"] = 3
+        except Exception as e:
+            print(f"Error creando Pagos Operadores: {e}")
+            placeholder = QLabel("Pagos Operadores\n\nEn desarrollo...")
+            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            placeholder.setStyleSheet(f"color: {ModernTheme.COLORS['text_muted']}; font-size: 16px;")
+            self.stackedWidget.addWidget(placeholder)
+            self.vistas["vista_pagos_operadores"] = 3
+        
+        # Activar Dashboard por defecto
+        self._cambiar_vista("vista_dashboard", "Dashboard")
+
+    def _cambiar_vista(self, vista_nombre: str, titulo: str):
+        """
+        Cambia la vista activa y actualiza el TopBar.
+        
+        Args:
+            vista_nombre: Nombre interno de la vista (ej: 'vista_dashboard')
+            titulo: Título a mostrar en el TopBar (ej: 'Dashboard')
+        """
+        # Obtener índice de la vista
+        index = self.vistas.get(vista_nombre)
+        if index is None:
+            return
+        
+        # Cambiar vista en el stacked widget
+        self.stackedWidget.setCurrentIndex(index)
+        
+        # Actualizar título del TopBar
+        self.topbar.setTitle(titulo)
+        
+        # Actualizar estado de botones del sidebar
+        for key, btn in self.nav_buttons.items():  # ← Requiere diccionario
+            btn.setActive(key == vista_nombre)
+
+    def _on_search(self, text: str):
+        """Callback cuando se realiza una búsqueda"""
+        # TODO: Implementar lógica de búsqueda global
+        print(f"Buscando: {text}")
+
+    def _abrir_configuracion(self):
+        """Abre el diálogo de configuración"""
+        try:
+            from dialogos.configuracion_dialog import ConfiguracionDialog
+            dlg = ConfiguracionDialog(self.fm, self.config, parent=self)
+            if dlg.exec():
+                # Recargar configuración si cambió
+                pass
+        except ImportError:
+            # Si no existe el diálogo, mostrar mensaje
+            QMessageBox.information(
+                self,
+                "Configuración",
+                "El diálogo de configuración aún no está implementado.\n\n"
+                "Funcionalidades disponibles:\n"
+                "• Cambio de moneda\n"
+                "• Gestión de proyecto\n"
+                "• Backup de datos"
+            )
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"No se pudo abrir la configuración:\n{e}"
+            )
+
+    def _refrescar_dashboard(self):
+        """Refresca los datos del dashboard"""
+        if hasattr(self, 'dashboard_tab'):
+            self.dashboard_tab.refrescar_datos()
+
+
 
     # ------------------------------------------------------------------ Interfaz Principal con Sidebar
 
     def _crear_interfaz_principal(self):
         """
         Crea la interfaz principal con Sidebar (izquierda) y QStackedWidget (derecha)
+        Estilo moderno "Tierra & Asfalto"
         """
         # Widget central
         central_widget = QWidget()
@@ -113,159 +333,138 @@ class AppGUI(QMainWindow):
         self.sidebar = self._crear_sidebar()
         main_layout.addWidget(self.sidebar)
         
-        # Crear QStackedWidget para las vistas
+        # Crear contenedor derecho con TopBar y QStackedWidget
+        content_container = QWidget()
+        content_layout = QVBoxLayout(content_container)
+        content_layout.setSpacing(0)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # TopBar
+        self.topbar = TopBar("Dashboard", show_search=True)  # ← topbar (sin guión bajo)
+        self.topbar.searchRequested.connect(self._on_search)
+        content_layout.addWidget(self.topbar)
+        
+        # QStackedWidget para las vistas
         self.stackedWidget = QStackedWidget()
-        main_layout.addWidget(self.stackedWidget)
+        self.stackedWidget.setStyleSheet(f"background-color: {ModernTheme.COLORS['bg_body']};")
+        content_layout.addWidget(self.stackedWidget)
+        
+        main_layout.addWidget(content_container)
         
         # Crear las vistas (antiguos tabs)
         self._crear_vistas()
     
-    def _crear_sidebar(self):
+    def _crear_sidebar(self) -> QFrame:
         """
-        Crea el sidebar de navegación con estilo Industrial Dark
+        Crea el sidebar lateral con navegación.
         """
         sidebar = QFrame()
-        sidebar.setFixedWidth(250)
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(260)
+        
+        # ✅ STYLESHEET CORREGIDO:
         sidebar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {AppTheme.COLORS["bg_surface"]};
-                border-right: 1px solid {AppTheme.COLORS["border"]};
+            QFrame#sidebar {{
+                background-color: {ModernTheme.COLORS['bg_sidebar']};  /* #1F2937 oscuro */
+                border-right: 1px solid {ModernTheme.COLORS['border']};
+                border: none;
+            }}
+            
+            /* Asegurar que todos los widgets hijos respeten el fondo oscuro */
+            QFrame#sidebar QWidget {{
+                background-color: transparent;
+            }}
+            
+            QFrame#sidebar QLabel {{
+                background-color: transparent;
+                color: {ModernTheme.COLORS['text_sidebar']};
             }}
         """)
         
+        # Layout vertical
         layout = QVBoxLayout(sidebar)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 24, 16, 16)
+        layout.setContentsMargins(16, 24, 16, 24)
+        layout.setSpacing(20)
         
-        # Logo/Título
-        title_label = QLabel(APP_FULL_NAME)
-        title_font = QFont("Inter", 20)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-        title_label.setStyleSheet(f"color: {AppTheme.COLORS['primary']}; padding: 16px 0;")
-        layout.addWidget(title_label)
+        # ========== BRAND HEADER ==========
+        brand = BrandHeader()
+        layout.addWidget(brand)
         
         # Separador
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background-color: {AppTheme.COLORS['border']};")
-        separator.setFixedHeight(1)
+        separator.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255, 255, 255, 0.1);
+                max-height: 1px;
+            }
+        """)
         layout.addWidget(separator)
         
-        layout.addSpacing(16)
+        # ========== NAVEGACIÓN ==========
+        # ✅ ESTAS LÍNEAS DEBEN ESTAR AQUÍ
+        nav_container = QWidget()
+        nav_layout = QVBoxLayout(nav_container)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(4)
         
-        # Botones de navegación
-        self.nav_buttons = []
-        
+        # Crear botones de navegación
         nav_items = [
-            ("Dashboard", 0, "📊"),
-            ("Alquileres", 1, "📋"),
-            ("Gastos", 2, "💰"),
-            ("Pagos", 3, "💳")
+            ("Dashboard", "dashboard", "vista_dashboard"),
+            ("Alquileres", "agriculture", "vista_alquileres"),
+            ("Gastos", "payments", "vista_gastos"),
+            ("Pagos Operadores", "engineering", "vista_pagos_operadores"),
         ]
         
-        for text, index, icon in nav_items:
-            btn = self._crear_boton_navegacion(f"{icon}  {text}", index)
-            self.nav_buttons.append(btn)
-            layout.addWidget(btn)
+        for text, icon_name, view_name in nav_items:
+            btn = SidebarButton(text, icon_name)
+            # Conectar con lambda que captura las variables correctamente
+            btn.clicked.connect(
+                lambda checked=False, v=view_name, t=text: self._cambiar_vista(v, t)
+            )
+            # Agregar al diccionario (ya inicializado en __init__)
+            self.nav_buttons[view_name] = btn
+            # ✅ Agregar al layout de navegación
+            nav_layout.addWidget(btn)
         
+        # ✅ Agregar el container de navegación al layout principal
+        layout.addWidget(nav_container)
         layout.addStretch()
         
-        # Versión en la parte inferior
-        version_label = QLabel(f"Versión {APP_VERSION}")
-        version_label.setStyleSheet(f"color: {AppTheme.COLORS['text_secondary']}; font-size: 11px;")
+        # ========== FOOTER ==========
+        footer_separator = QFrame()
+        footer_separator.setFrameShape(QFrame.Shape.HLine)
+        footer_separator.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255, 255, 255, 0.1);
+                max-height: 1px;
+            }
+        """)
+        layout.addWidget(footer_separator)
+        
+        # Botón Configuración
+        btn_config = SidebarButton("Configuración", "settings")
+        btn_config.clicked.connect(self._abrir_configuracion)
+        layout.addWidget(btn_config)
+        
+        # Botón Salir
+        btn_salir = SidebarButton("Salir", "logout")
+        btn_salir.clicked.connect(self.close)
+        layout.addWidget(btn_salir)
+        
+        # Versión
+        version_label = QLabel("Versión 6.0")
         version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        version_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_sidebar_muted']};
+                font-size: 11px;
+                padding: 8px 0;
+            }}
+        """)
         layout.addWidget(version_label)
         
         return sidebar
-    
-    def _crear_boton_navegacion(self, text: str, index: int):
-        """
-        Crea un botón de navegación para el sidebar
-        """
-        btn = QPushButton(text)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setCheckable(True)
-        btn.setMinimumHeight(48)
-        
-        # Estilo del botón
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {AppTheme.COLORS["text_secondary"]};
-                border: none;
-                border-radius: 6px;
-                padding: 12px 16px;
-                text-align: left;
-                font-size: 14px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                background-color: {AppTheme.COLORS["bg_input"]};
-                color: {AppTheme.COLORS["text_primary"]};
-            }}
-            QPushButton:checked {{
-                background-color: {AppTheme.COLORS["primary"]};
-                color: white;
-                font-weight: 600;
-            }}
-        """)
-        
-        # Conectar el botón para cambiar la vista (capture index by value)
-        btn.clicked.connect(lambda checked=False, i=index: self._cambiar_vista(i))
-        
-        return btn
-    
-    def _cambiar_vista(self, index: int):
-        """
-        Cambia la vista actual del QStackedWidget y actualiza el estado de los botones
-        """
-        self.stackedWidget.setCurrentIndex(index)
-        
-        # Actualizar estado de botones (solo uno activo)
-        for i, btn in enumerate(self.nav_buttons):
-            btn.setChecked(i == index)
-    
-    def _crear_vistas(self):
-        """
-        Crea las vistas (antiguos tabs) y las añade al QStackedWidget
-        """
-        try:
-            # Dashboard
-            self.dashboard_view = DashboardTab(self.fm)
-            self.stackedWidget.addWidget(self.dashboard_view)
-
-            # Registro de Alquileres
-            self.registro_view = RegistroAlquileresTab(
-                self.fm, storage_manager=self.sm
-            )
-            self.stackedWidget.addWidget(self.registro_view)
-
-            # Gastos de Equipos
-            self.gastos_view = TabGastosEquipos(self.fm, storage_manager=self.sm)
-            self.stackedWidget.addWidget(self.gastos_view)
-
-            # Pagos a Operadores
-            self.pagos_view = TabPagosOperadores(self.fm, storage_manager=self.sm)
-            self.stackedWidget.addWidget(self.pagos_view)
-
-            # Crear referencias legacy para compatibilidad con código existente
-            self.dashboard_tab = self.dashboard_view
-            self.registro_tab = self.registro_view
-            self.gastos_tab = self.gastos_view
-            self.pagos_tab = self.pagos_view
-
-            # Vista inicial: Dashboard
-            self._cambiar_vista(0)
-
-        except Exception as e:
-            logger.exception("Error creando vistas")
-            QMessageBox.critical(
-                self,
-                "Error al iniciar",
-                f"No se pudo iniciar la interfaz gráfica:\n{e}",
-            )
-            raise
 
     # ------------------------------------------------------------------ Placeholders (no usados, pero mantenidos)
 
@@ -1456,94 +1655,116 @@ class AppGUI(QMainWindow):
 
     def _cargar_mapas_y_poblar_tabs(self):
         """
-        Carga mapas globales desde Firebase, construye subcategorias_by_cat a partir
-        del catálogo de subcategorías y actualiza todos los tabs con dichos mapas.
-        Luego dispara la carga inicial de datos en cada tab.
+        Carga mapas globales desde Firebase y actualiza las vistas con dichos mapas.
+        Versión adaptada para la interfaz moderna con manejo robusto de errores.
         """
         try:
             import time
+            logger.info("Cargando mapas de nombres desde Firebase...")
 
-            logger.info("Cargando mapas de nombres...")
+            # ========== EQUIPOS ==========
+            try:
+                equipos = self.fm.obtener_equipos(activo=None) or []
+                self.equipos_mapa = {
+                    str(eq["id"]): eq.get("nombre", "N/A") for eq in equipos
+                }
+                logger.info(f"✅ Equipos cargados: {len(self.equipos_mapa)}")
+                time.sleep(0.2)
+            except Exception as e:
+                logger.error(f"Error cargando equipos: {e}")
+                self.equipos_mapa = {}
 
-            equipos = self.fm.obtener_equipos(activo=None)
-            self.equipos_mapa = {
-                str(eq["id"]): eq.get("nombre", "N/A") for eq in equipos
-            }
+            # ========== CLIENTES ==========
+            try:
+                clientes = self.fm.obtener_entidades(tipo="Cliente", activo=None) or []
+                self.clientes_mapa = {
+                    str(cl["id"]): cl.get("nombre", "N/A") for cl in clientes
+                }
+                logger.info(f"✅ Clientes cargados: {len(self.clientes_mapa)}")
+                time.sleep(0.2)
+            except Exception as e:
+                logger.error(f"Error cargando clientes: {e}")
+                self.clientes_mapa = {}
 
-            time.sleep(0.3)
+            # ========== OPERADORES ==========
+            try:
+                operadores = self.fm.obtener_entidades(tipo="Operador", activo=None) or []
+                self.operadores_mapa = {
+                    str(op["id"]): op.get("nombre", "N/A") for op in operadores
+                }
+                logger.info(f"✅ Operadores cargados: {len(self.operadores_mapa)}")
+                time.sleep(0.2)
+            except Exception as e:
+                logger.error(f"Error cargando operadores: {e}")
+                self.operadores_mapa = {}
 
-            clientes = self.fm.obtener_entidades(tipo="Cliente", activo=None)
-            self.clientes_mapa = {
-                str(cl["id"]): cl.get("nombre", "N/A") for cl in clientes
-            }
+            # ========== CUENTAS ==========
+            try:
+                self.cuentas_mapa = {
+                    str(k): v
+                    for k, v in (self.fm.obtener_mapa_global("cuentas") or {}).items()
+                }
+                logger.info(f"✅ Cuentas cargadas: {len(self.cuentas_mapa)}")
+                time.sleep(0.2)
+            except Exception as e:
+                logger.error(f"Error cargando cuentas: {e}")
+                self.cuentas_mapa = {}
 
-            time.sleep(0.3)
+            # ========== CATEGORÍAS ==========
+            try:
+                self.categorias_mapa = {
+                    str(k): v
+                    for k, v in (self.fm.obtener_mapa_global("categorias") or {}).items()
+                }
+                logger.info(f"✅ Categorías cargadas: {len(self.categorias_mapa)}")
+                time.sleep(0.2)
+            except Exception as e:
+                logger.error(f"Error cargando categorías: {e}")
+                self.categorias_mapa = {}
 
-            operadores = self.fm.obtener_entidades(
-                tipo="Operador", activo=None
-            )
-            self.operadores_mapa = {
-                str(op["id"]): op.get("nombre", "N/A") for op in operadores
-            }
+            # ========== SUBCATEGORÍAS ==========
+            try:
+                self.subcategorias_mapa = {
+                    str(k): v
+                    for k, v in (self.fm.obtener_mapa_global("subcategorias") or {}).items()
+                }
+                logger.info(f"✅ Subcategorías cargadas: {len(self.subcategorias_mapa)}")
+                time.sleep(0.2)
+            except Exception as e:
+                logger.error(f"Error cargando subcategorías: {e}")
+                self.subcategorias_mapa = {}
 
-            time.sleep(0.3)
+            # ========== SUBCATEGORÍAS POR CATEGORÍA ==========
+            subcategorias_by_cat = {}
+            try:
+                if hasattr(self.fm, "obtener_subcategorias_catalogo"):
+                    subcats_catalogo = self.fm.obtener_subcategorias_catalogo() or []
+                    for sc in subcats_catalogo:
+                        sid = str(sc.get("id"))
+                        cid = sc.get("categoria_id")
+                        cid = str(cid) if cid not in (None, "", 0, "0") else None
+                        nom = sc.get("nombre") or self.subcategorias_mapa.get(sid, "")
+                        if cid:
+                            subcategorias_by_cat.setdefault(cid, {})[sid] = nom
+                    logger.info(f"✅ Subcategorías por categoría construidas")
+            except Exception as e:
+                logger.warning(f"No se pudieron cargar subcategorías por categoría: {e}")
 
-            self.cuentas_mapa = {
-                str(k): v
-                for k, v in (
-                    self.fm.obtener_mapa_global("cuentas") or {}
-                ).items()
-            }
-            time.sleep(0.3)
-            self.categorias_mapa = {
-                str(k): v
-                for k, v in (
-                    self.fm.obtener_mapa_global("categorias") or {}
-                ).items()
-            }
-            time.sleep(0.3)
-            self.subcategorias_mapa = {
-                str(k): v
-                for k, v in (
-                    self.fm.obtener_mapa_global("subcategorias") or {}
-                ).items()
-            }
-
-            subcats_catalogo = []
-            if hasattr(self.fm, "obtener_subcategorias_catalogo"):
-                subcats_catalogo = self.fm.obtener_subcategorias_catalogo() or []
-
-            by_cat: dict[str, dict[str, str]] = {}
-            for sc in subcats_catalogo:
-                sid = str(sc.get("id"))
-                cid = sc.get("categoria_id")
-                cid = str(cid) if cid not in (None, "", 0, "0") else None
-                nom = sc.get("nombre") or self.subcategorias_mapa.get(sid, "")
-                if cid:
-                    by_cat.setdefault(cid, {})[sid] = nom
-
-            # Intentar cargar mapa de proyectos (opcional)
-            time.sleep(0.3)
+            # ========== PROYECTOS (OPCIONAL) ==========
             try:
                 self.proyectos_mapa = {
                     str(k): v
-                    for k, v in (
-                        self.fm.obtener_mapa_global("proyectos") or {}
-                    ).items()
+                    for k, v in (self.fm.obtener_mapa_global("proyectos") or {}).items()
                 }
-                logger.info(f"Mapa de proyectos cargado: {len(self.proyectos_mapa)} proyectos")
+                logger.info(f"✅ Proyectos cargados: {len(self.proyectos_mapa)}")
             except Exception as e:
-                logger.warning(f"No se pudo cargar mapa de proyectos: {e}")
+                logger.warning(f"No se pudieron cargar proyectos: {e}")
                 self.proyectos_mapa = {}
 
-            logger.info(
-                "Mapas cargados. Actualizando título y poblando tabs..."
-            )
+            # ========== ACTUALIZAR TÍTULO ==========
+            self.setWindowTitle(f"EQUIPOS 6.0 - {len(self.equipos_mapa)} Equipos")
 
-            self.setWindowTitle(
-                f"EQUIPOS 4.0 - {len(self.equipos_mapa)} Equipos Totales"
-            )
-
+            # ========== ACTUALIZAR VISTAS (SI EXISTEN) ==========
             mapas_completos = {
                 "equipos": self.equipos_mapa,
                 "clientes": self.clientes_mapa,
@@ -1551,65 +1772,64 @@ class AppGUI(QMainWindow):
                 "cuentas": self.cuentas_mapa,
                 "categorias": self.categorias_mapa,
                 "subcategorias": self.subcategorias_mapa,
-                "subcategorias_catalogo": subcats_catalogo,
-                "subcategorias_by_cat": by_cat,
+                "subcategorias_by_cat": subcategorias_by_cat,
+                "proyectos": self.proyectos_mapa,
             }
 
-            if hasattr(self.dashboard_tab, "actualizar_mapas"):
-                self.dashboard_tab.actualizar_mapas(mapas_completos)
-            if hasattr(self.registro_tab, "actualizar_mapas"):
-                self.registro_tab.actualizar_mapas(mapas_completos)
-            if hasattr(self.gastos_tab, "actualizar_mapas"):
-                self.gastos_tab.actualizar_mapas(mapas_completos)
-            if hasattr(self.pagos_tab, "actualizar_mapas"):
-                self.pagos_tab.actualizar_mapas(mapas_completos)
+            # Actualizar Dashboard
+            if hasattr(self, 'dashboard_tab') and hasattr(self.dashboard_tab, 'actualizar_mapas'):
+                try:
+                    self.dashboard_tab.actualizar_mapas(mapas_completos)
+                    if hasattr(self.dashboard_tab, 'refrescar_datos'):
+                        self.dashboard_tab.refrescar_datos()
+                    logger.info("✅ Dashboard actualizado")
+                except Exception as e:
+                    logger.error(f"Error actualizando Dashboard: {e}")
 
-            if hasattr(self.dashboard_tab, "refrescar_datos"):
-                self.dashboard_tab.refrescar_datos()
-            if hasattr(self.registro_tab, "_cargar_alquileres"):
-                self.registro_tab._cargar_alquileres()
-            if hasattr(self.gastos_tab, "_recargar_por_fecha"):
-                self.gastos_tab._recargar_por_fecha()
-            elif hasattr(self.gastos_tab, "_cargar_gastos"):
-                self.gastos_tab._cargar_gastos()
-            if hasattr(self.pagos_tab, "_cargar_pagos"):
-                self.pagos_tab._cargar_pagos()
+            # Actualizar Alquileres
+            if hasattr(self, 'alquileres_tab') and hasattr(self.alquileres_tab, 'actualizar_mapas'):
+                try:
+                    self.alquileres_tab.actualizar_mapas(mapas_completos)
+                    if hasattr(self.alquileres_tab, '_cargar_alquileres'):
+                        self.alquileres_tab._cargar_alquileres()
+                    logger.info("✅ Alquileres actualizado")
+                except Exception as e:
+                    logger.error(f"Error actualizando Alquileres: {e}")
+
+            # Actualizar Gastos
+            if hasattr(self, 'gastos_tab') and hasattr(self.gastos_tab, 'actualizar_mapas'):
+                try:
+                    self.gastos_tab.actualizar_mapas(mapas_completos)
+                    if hasattr(self.gastos_tab, '_recargar_por_fecha'):
+                        self.gastos_tab._recargar_por_fecha()
+                    elif hasattr(self.gastos_tab, '_cargar_gastos'):
+                        self.gastos_tab._cargar_gastos()
+                    logger.info("✅ Gastos actualizado")
+                except Exception as e:
+                    logger.error(f"Error actualizando Gastos: {e}")
+
+            # Actualizar Pagos Operadores
+            if hasattr(self, 'pagos_tab') and hasattr(self.pagos_tab, 'actualizar_mapas'):
+                try:
+                    self.pagos_tab.actualizar_mapas(mapas_completos)
+                    if hasattr(self.pagos_tab, '_cargar_pagos'):
+                        self.pagos_tab._cargar_pagos()
+                    logger.info("✅ Pagos Operadores actualizado")
+                except Exception as e:
+                    logger.error(f"Error actualizando Pagos: {e}")
+
+            logger.info("✅ Mapas y vistas cargados exitosamente")
 
         except Exception as e:
-            logger.critical(
-                "Error en _cargar_mapas_y_poblar_tabs: %s", e, exc_info=True
+            logger.critical(f"Error CRÍTICO en _cargar_mapas_y_poblar_tabs: {e}", exc_info=True)
+            QMessageBox.warning(
+                self,
+                "Error al cargar datos",
+                "Ocurrió un error al cargar algunos datos desde Firebase.\n\n"
+                f"Error: {e}\n\n"
+                "La aplicación funcionará con los datos disponibles.\n"
+                "Revise los logs para más detalles."
             )
-            error_msg = str(e)
-            if (
-                "429" in error_msg
-                or "Quota exceeded" in error_msg
-                or "ResourceExhausted" in error_msg
-            ):
-                QMessageBox.critical(
-                    self,
-                    "Error: Cuota de Firebase Excedida",
-                    "Se ha excedido la cuota de Firebase/Firestore.\n\n"
-                    "Posibles soluciones:\n"
-                    "1. Espere unos minutos e intente nuevamente\n"
-                    "2. Verifique su plan de Firebase (¿Free tier?)\n"
-                    "3. Revise el uso en Firebase Console\n"
-                    "4. Considere actualizar a un plan de pago\n\n"
-                    "La aplicación se cerrará. Por favor, espere e intente nuevamente.",
-                )
-            else:
-                QMessageBox.critical(
-                    self,
-                    "Error Crítico de Carga",
-                    "No se pudieron cargar los datos iniciales.\n\n"
-                    f"Error: {e}\n\n"
-                    "Posibles causas:\n"
-                    "- Faltan índices en Firebase/Firestore\n"
-                    "- Problemas de conexión a Internet\n"
-                    "- Credenciales incorrectas\n\n"
-                    "Por favor, revise los logs y reinicie la aplicación.",
-                )
-            self.setWindowTitle("EQUIPOS 4.0 - ERROR DE CARGA")
-            QTimer.singleShot(1000, self.close)
 
     # ------------------- Reporte de Rendimientos -------------------
 
