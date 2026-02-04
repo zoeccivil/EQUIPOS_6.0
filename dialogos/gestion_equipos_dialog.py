@@ -11,10 +11,136 @@ from PyQt6.QtWidgets import (
     QLineEdit, QFormLayout, QCheckBox, QLabel, QStyle
 )
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
 
 from firebase_manager import FirebaseManager
 
 logger = logging.getLogger(__name__)
+
+# Estilos CSS
+DIALOG_STYLE = """
+QDialog {
+    background-color: #F3F4F6;
+    font-family: 'Segoe UI';
+}
+QLabel {
+    color: #374151;
+    font-size: 11pt;
+}
+QLabel[class="title"] {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #1F2937;
+}
+QPushButton {
+    background-color: #F59E0B;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 10pt;
+    font-weight: 600;
+    min-height: 25px;
+}
+QPushButton:hover {
+    background-color: #D97706;
+}
+QPushButton:pressed {
+    background-color: #B45309;
+}
+QPushButton[class="secondary"] {
+    background-color: #E5E7EB;
+    color: #374151;
+}
+QPushButton[class="secondary"]:hover {
+    background-color: #D1D5DB;
+}
+QPushButton[class="secondary"]:pressed {
+    background-color: #9CA3AF;
+}
+QPushButton[class="danger"] {
+    background-color: #DC2626;
+    color: white;
+}
+QPushButton[class="danger"]:hover {
+    background-color: #B91C1C;
+}
+QPushButton[class="danger"]:pressed {
+    background-color: #991B1B;
+}
+QTableWidget {
+    background-color: #FFFFFF;
+    alternate-background-color: #F9FAFB;
+    gridline-color: #E5E7EB;
+    selection-background-color: #FEF3C7;
+    selection-color: #1F2937;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+}
+QTableWidget::item {
+    padding: 8px;
+    color: #1F2937;
+}
+QTableWidget::item:selected {
+    background-color: #FEF3C7;
+    color: #1F2937;
+}
+QHeaderView::section {
+    background-color: #1F2937;
+    color: #FFFFFF;
+    padding: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 10pt;
+}
+QLineEdit {
+    background-color: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #1F2937;
+    font-size: 10pt;
+    min-height: 25px;
+}
+QLineEdit:hover {
+    border: 2px solid #F59E0B;
+}
+QLineEdit:focus {
+    border: 2px solid #F59E0B;
+}
+QScrollBar:vertical {
+    background-color: #F3F4F6;
+    width: 12px;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical {
+    background-color: #D1D5DB;
+    border-radius: 6px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover {
+    background-color: #9CA3AF;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background-color: #F3F4F6;
+    height: 12px;
+    border-radius: 6px;
+}
+QScrollBar::handle:horizontal {
+    background-color: #D1D5DB;
+    border-radius: 6px;
+    min-width: 30px;
+}
+QScrollBar::handle:horizontal:hover {
+    background-color: #9CA3AF;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+"""
 
 
 class GestionEquiposDialog(QDialog):
@@ -29,39 +155,43 @@ class GestionEquiposDialog(QDialog):
         self.setWindowTitle("Gestión de Equipos")
         self.setMinimumSize(900, 600)
         
+        # Aplicar estilos
+        self.setStyleSheet(DIALOG_STYLE)
+        
         self._init_ui()
         self._cargar_equipos()
     
     def _init_ui(self):
         """Inicializa la interfaz."""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
         # Título
-        titulo = QLabel("<h2>Gestión de Equipos</h2>")
+        titulo = QLabel("Gestión de Equipos")
+        titulo.setProperty("class", "title")
+        titulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(titulo)
         
         # Botones de acción
         botones_layout = QHBoxLayout()
+        botones_layout.setSpacing(10)
         
         self.btn_nuevo = QPushButton("➕ Nuevo Equipo")
-        icon_new = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogNewFolder)
-        self.btn_nuevo.setIcon(icon_new)
         self.btn_nuevo.clicked.connect(self._nuevo)
         botones_layout.addWidget(self.btn_nuevo)
         
         self.btn_editar = QPushButton("✏️ Editar")
-        icon_edit = self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView)
-        self.btn_editar.setIcon(icon_edit)
         self.btn_editar.clicked.connect(self._editar)
         botones_layout.addWidget(self.btn_editar)
         
         self.btn_eliminar = QPushButton("🗑️ Eliminar")
-        icon_delete = self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon)
-        self.btn_eliminar.setIcon(icon_delete)
+        self.btn_eliminar.setProperty("class", "danger")
         self.btn_eliminar.clicked.connect(self._eliminar)
         botones_layout.addWidget(self.btn_eliminar)
         
         self.btn_activar_desactivar = QPushButton("🔄 Activar/Desactivar")
+        self.btn_activar_desactivar.setProperty("class", "secondary")
         self.btn_activar_desactivar.clicked.connect(self._toggle_activo)
         botones_layout.addWidget(self.btn_activar_desactivar)
         
@@ -71,20 +201,30 @@ class GestionEquiposDialog(QDialog):
         # Tabla
         self.tabla = QTableWidget()
         self.tabla.setColumnCount(4)
-        self.tabla.setHorizontalHeaderLabels(["ID", "Nombre", "Modelo", "Activo"])
+        self.tabla.setHorizontalHeaderLabels(["ID", "Nombre", "Modelo", "Estado"])
         self.tabla.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla.setAlternatingRowColors(True)
-        self.tabla.horizontalHeader().setStretchLastSection(True)
+        self.tabla.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tabla.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tabla.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.tabla.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.tabla.verticalHeader().setVisible(False)
+        self.tabla.verticalHeader().setDefaultSectionSize(36)
         self.tabla.itemDoubleClicked.connect(self._editar)
         layout.addWidget(self.tabla)
         
         # Botón cerrar
+        btn_cerrar_layout = QHBoxLayout()
+        btn_cerrar_layout.addStretch()
+        
         btn_cerrar = QPushButton("✖️ Cerrar")
-        icon_close = self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton)
-        btn_cerrar.setIcon(icon_close)
+        btn_cerrar.setProperty("class", "secondary")
         btn_cerrar.clicked.connect(self.accept)
-        layout.addWidget(btn_cerrar)
+        btn_cerrar.setMinimumWidth(120)
+        btn_cerrar_layout.addWidget(btn_cerrar)
+        
+        layout.addLayout(btn_cerrar_layout)
     
     def _cargar_equipos(self):
         """Carga los equipos desde Firebase."""
@@ -103,12 +243,22 @@ class GestionEquiposDialog(QDialog):
             row = self.tabla.rowCount()
             self.tabla.insertRow(row)
             
-            self.tabla.setItem(row, 0, QTableWidgetItem(str(equipo.get('id', ''))))
+            # ID
+            id_item = QTableWidgetItem(str(equipo.get('id', '')))
+            id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.tabla.setItem(row, 0, id_item)
+            
+            # Nombre
             self.tabla.setItem(row, 1, QTableWidgetItem(equipo.get('nombre', '')))
+            
+            # Modelo
             self.tabla.setItem(row, 2, QTableWidgetItem(equipo.get('modelo', '')))
             
+            # Estado
             activo = "✅ Activo" if equipo.get('activo', True) else "❌ Inactivo"
-            self.tabla.setItem(row, 3, QTableWidgetItem(activo))
+            estado_item = QTableWidgetItem(activo)
+            estado_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.tabla.setItem(row, 3, estado_item)
     
     def _obtener_seleccionado(self) -> Optional[Dict[str, Any]]:
         """Obtiene el equipo seleccionado."""
@@ -218,7 +368,10 @@ class FormularioEquipoDialog(QDialog):
         
         titulo = "Editar Equipo" if equipo else "Nuevo Equipo"
         self.setWindowTitle(titulo)
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(450)
+        
+        # Aplicar estilos
+        self.setStyleSheet(DIALOG_STYLE)
         
         self._init_ui()
         if equipo:
@@ -227,28 +380,50 @@ class FormularioEquipoDialog(QDialog):
     def _init_ui(self):
         """Inicializa la interfaz."""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(25, 25, 25, 25)
+        layout.setSpacing(20)
         
+        # Título
+        titulo_texto = "Editar Equipo" if self.equipo else "Nuevo Equipo"
+        titulo = QLabel(titulo_texto)
+        titulo.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1F2937;")
+        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(titulo)
+        
+        # Formulario
         form_layout = QFormLayout()
+        form_layout.setSpacing(15)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         
+        lbl_nombre = QLabel("Nombre:")
+        lbl_nombre.setStyleSheet("font-weight: 600; color: #374151;")
         self.txt_nombre = QLineEdit()
         self.txt_nombre.setPlaceholderText("Nombre del equipo...")
-        form_layout.addRow("Nombre:", self.txt_nombre)
+        form_layout.addRow(lbl_nombre, self.txt_nombre)
         
+        lbl_modelo = QLabel("Modelo:")
+        lbl_modelo.setStyleSheet("font-weight: 600; color: #374151;")
         self.txt_modelo = QLineEdit()
         self.txt_modelo.setPlaceholderText("Modelo del equipo...")
-        form_layout.addRow("Modelo:", self.txt_modelo)
+        form_layout.addRow(lbl_modelo, self.txt_modelo)
         
         layout.addLayout(form_layout)
         
+        layout.addSpacing(10)
+        
         # Botones
         botones_layout = QHBoxLayout()
+        botones_layout.setSpacing(10)
         
         btn_guardar = QPushButton("💾 Guardar")
         btn_guardar.clicked.connect(self.accept)
+        btn_guardar.setMinimumWidth(120)
         botones_layout.addWidget(btn_guardar)
         
         btn_cancelar = QPushButton("✖️ Cancelar")
+        btn_cancelar.setProperty("class", "secondary")
         btn_cancelar.clicked.connect(self.reject)
+        btn_cancelar.setMinimumWidth(120)
         botones_layout.addWidget(btn_cancelar)
         
         layout.addLayout(botones_layout)

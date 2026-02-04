@@ -24,88 +24,208 @@ import logging
 logger = logging.getLogger(__name__)
 
 APP_QSS = """
+QDialog {
+    background-color: #F3F4F6;
+    font-family: 'Segoe UI';
+}
 QWidget {
-    background: #1E1E1E;
-    color: #E6E6E6;
-    font-family: "Segoe UI";
+    background-color: transparent;
+    color: #1F2937;
+    font-family: 'Segoe UI';
     font-size: 10pt;
 }
 QLabel {
-    color: #E6E6E6;
+    color: #374151;
+    font-size: 10pt;
 }
 QGroupBox {
-    border: 1px solid #3A3A3A;
-    border-radius: 6px;
-    margin-top: 10px;
-    padding: 8px;
+    background-color: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    margin-top: 14px;
+    padding: 15px;
     font-weight: 600;
-    font-size: 11pt;
-    color: #E6E6E6;
+    font-size: 12pt;
+    color: #1F2937;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 4px;
-    color: #E6E6E6;
+    left: 15px;
+    padding: 0 8px;
+    color: #1F2937;
+    background-color: #FFFFFF;
 }
-QHeaderView::section {
-    background: #2F2F2F;
-    color: #E6E6E6;
-    padding: 6px 8px;
-    border: 1px solid #3A3A3A;
-    font-weight: 600;
+QComboBox {
+    background-color: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #1F2937;
+    font-size: 10pt;
+    min-height: 25px;
 }
-QTableWidget {
-    background: #222;
-    alternate-background-color: #262626;
-    gridline-color: #3A3A3A;
-    selection-background-color: #2E8BFF;
+QComboBox:hover {
+    border: 2px solid #F59E0B;
+}
+QComboBox:focus {
+    border: 2px solid #F59E0B;
+}
+QComboBox::drop-down {
+    border: none;
+    padding-right: 10px;
+}
+QComboBox::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #6B7280;
+    margin-right: 8px;
+}
+QComboBox QAbstractItemView {
+    background-color: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    selection-background-color: #FEF3C7;
+    selection-color: #1F2937;
+    color: #1F2937;
+}
+QDateEdit {
+    background-color: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #1F2937;
+    font-size: 10pt;
+    min-height: 25px;
+}
+QDateEdit:hover {
+    border: 2px solid #F59E0B;
+}
+QDateEdit:focus {
+    border: 2px solid #F59E0B;
+}
+QDateEdit::drop-down {
+    border: none;
+    padding-right: 10px;
+}
+QDateEdit::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #6B7280;
+    margin-right: 8px;
+}
+QCalendarWidget {
+    background-color: #FFFFFF;
+}
+QCalendarWidget QWidget {
+    alternate-background-color: #F9FAFB;
+    background-color: #FFFFFF;
+}
+QCalendarWidget QAbstractItemView:enabled {
+    color: #1F2937;
+    background-color: #FFFFFF;
+    selection-background-color: #F59E0B;
     selection-color: #FFFFFF;
 }
+QHeaderView::section {
+    background-color: #1F2937;
+    color: #FFFFFF;
+    padding: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 10pt;
+}
+QTableWidget {
+    background-color: #FFFFFF;
+    alternate-background-color: #F9FAFB;
+    gridline-color: #E5E7EB;
+    selection-background-color: #FEF3C7;
+    selection-color: #1F2937;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+}
 QTableWidget::item {
-    padding: 4px 6px;
+    padding: 6px 8px;
+    color: #1F2937;
+}
+QTableWidget::item:selected {
+    background-color: #FEF3C7;
+    color: #1F2937;
 }
 QScrollBar:vertical {
-    background: #222;
-    width: 10px;
+    background-color: #F3F4F6;
+    width: 12px;
+    border-radius: 6px;
 }
 QScrollBar::handle:vertical {
-    background: #555;
-    border-radius: 4px;
-    min-height: 24px;
+    background-color: #D1D5DB;
+    border-radius: 6px;
+    min-height: 30px;
 }
 QScrollBar::handle:vertical:hover {
-    background: #666;
+    background-color: #9CA3AF;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background-color: #F3F4F6;
+    height: 12px;
+    border-radius: 6px;
+}
+QScrollBar::handle:horizontal {
+    background-color: #D1D5DB;
+    border-radius: 6px;
+    min-width: 30px;
+}
+QScrollBar::handle:horizontal:hover {
+    background-color: #9CA3AF;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
 }
 QFrame#resumenFrame {
-    background: #101820;
-    border: 1px solid #2E7D32;
-    border-radius: 6px;
-    padding: 14px;
+    background-color: #FFFFFF;
+    border: 2px solid #F59E0B;
+    border-radius: 8px;
+    padding: 18px;
 }
 QPushButton {
-    background: #2E2E2E;
-    color: #E6E6E6;
-    border: 1px solid #3A3A3A;
-    padding: 6px 12px;
-    border-radius: 4px;
+    background-color: #F59E0B;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 10pt;
+    font-weight: 600;
+    min-height: 25px;
 }
-QPushButton:hover { background: #333; }
-QPushButton:pressed { background: #2A2A2A; }
+QPushButton:hover {
+    background-color: #D97706;
+}
+QPushButton:pressed {
+    background-color: #B45309;
+}
 QPushButton[class~="primary"] {
-    background: #2E8BFF;
-    border: 1px solid #1F74D4;
+    background-color: #F59E0B;
     color: #FFFFFF;
 }
-QPushButton[class~="primary"]:hover { background: #3798FF; }
-QPushButton[class~="primary"]:pressed { background: #1F74D4; }
-QPushButton[class~="danger"] {
-    background: #2A1A1A;
-    border: 1px solid #D95C5C;
-    color: #D95C5C;
+QPushButton[class~="primary"]:hover {
+    background-color: #D97706;
 }
-QPushButton[class~="danger"]:hover { background: #3A1F1F; }
-QPushButton[class~="danger"]:pressed { background: #2A1818; }
+QPushButton[class~="primary"]:pressed {
+    background-color: #B45309;
+}
+QPushButton[class~="danger"] {
+    background-color: #E5E7EB;
+    color: #374151;
+}
+QPushButton[class~="danger"]:hover {
+    background-color: #D1D5DB;
+}
+QPushButton[class~="danger"]:pressed {
+    background-color: #9CA3AF;
+}
 """
 
 class DialogoPreviewRendimientos(QDialog):
@@ -120,7 +240,7 @@ class DialogoPreviewRendimientos(QDialog):
         self.config = config or {}
         self.sm = storage_manager
         self.setWindowTitle("Reporte de Rendimientos por Equipo - Mejorado")
-        self.resize(1400, 750)  # tamaño inicial; el usuario puede maximizar
+        self.resize(1400, 750)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self.moneda = self.config.get("app", {}).get("moneda", "RD$")
@@ -138,25 +258,44 @@ class DialogoPreviewRendimientos(QDialog):
         """Inicializa la interfaz mejorada."""
         self.setStyleSheet(APP_QSS)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
 
         # --- Filtros ---
         filtros_layout = QHBoxLayout()
-        filtros_layout.addWidget(QLabel("Equipo:"))
+        filtros_layout.setSpacing(10)
+        
+        lbl_equipo = QLabel("Equipo:")
+        lbl_equipo.setStyleSheet("font-weight: 600;")
+        filtros_layout.addWidget(lbl_equipo)
+        
         self.combo_equipo = QComboBox()
         self.combo_equipo.addItem("Todos", None)
         for eid, nombre in sorted(self.equipos_mapa.items(), key=lambda x: x[1]):
             self.combo_equipo.addItem(nombre, str(eid))
         filtros_layout.addWidget(self.combo_equipo)
 
-        filtros_layout.addWidget(QLabel("Desde:"))
+        filtros_layout.addSpacing(15)
+
+        lbl_desde = QLabel("Desde:")
+        lbl_desde.setStyleSheet("font-weight: 600;")
+        filtros_layout.addWidget(lbl_desde)
+        
         self.fecha_inicio = QDateEdit(calendarPopup=True)
         self.fecha_inicio.setDisplayFormat("yyyy-MM-dd")
+        self.fecha_inicio.setCalendarPopup(True)
         filtros_layout.addWidget(self.fecha_inicio)
 
-        filtros_layout.addWidget(QLabel("Hasta:"))
+        lbl_hasta = QLabel("Hasta:")
+        lbl_hasta.setStyleSheet("font-weight: 600;")
+        filtros_layout.addWidget(lbl_hasta)
+        
         self.fecha_fin = QDateEdit(calendarPopup=True)
         self.fecha_fin.setDisplayFormat("yyyy-MM-dd")
+        self.fecha_fin.setCalendarPopup(True)
         filtros_layout.addWidget(self.fecha_fin)
+
+        filtros_layout.addSpacing(15)
 
         self.btn_actualizar = QPushButton("🔄 Actualizar")
         filtros_layout.addWidget(self.btn_actualizar)
@@ -166,6 +305,8 @@ class DialogoPreviewRendimientos(QDialog):
         # --- BLOQUE 1: FACTURACIÓN ---
         grupo_fact = QGroupBox("📊 FACTURACIÓN")
         layout_fact = QVBoxLayout(grupo_fact)
+        layout_fact.setContentsMargins(10, 25, 10, 10)
+        layout_fact.setSpacing(8)
 
         self.tabla_facturacion = QTableWidget(0, 7)
         self.tabla_facturacion.setHorizontalHeaderLabels([
@@ -184,13 +325,15 @@ class DialogoPreviewRendimientos(QDialog):
         self.tabla_facturacion.setShowGrid(True)
         self.tabla_facturacion.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.tabla_facturacion.horizontalHeader().setMinimumSectionSize(90)
-        self.tabla_facturacion.verticalHeader().setDefaultSectionSize(26)
+        self.tabla_facturacion.verticalHeader().setDefaultSectionSize(32)
         layout_fact.addWidget(self.tabla_facturacion)
         layout.addWidget(grupo_fact)
 
         # --- BLOQUE 2: RENDIMIENTOS ---
         grupo_rend = QGroupBox("💰 RENDIMIENTOS")
         layout_rend = QVBoxLayout(grupo_rend)
+        layout_rend.setContentsMargins(10, 25, 10, 10)
+        layout_rend.setSpacing(8)
 
         self.tabla_rendimientos = QTableWidget(0, 6)
         self.tabla_rendimientos.setHorizontalHeaderLabels([
@@ -209,7 +352,7 @@ class DialogoPreviewRendimientos(QDialog):
         self.tabla_rendimientos.setShowGrid(True)
         self.tabla_rendimientos.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.tabla_rendimientos.horizontalHeader().setMinimumSectionSize(90)
-        self.tabla_rendimientos.verticalHeader().setDefaultSectionSize(26)
+        self.tabla_rendimientos.verticalHeader().setDefaultSectionSize(32)
         layout_rend.addWidget(self.tabla_rendimientos)
         layout.addWidget(grupo_rend)
 
@@ -218,15 +361,18 @@ class DialogoPreviewRendimientos(QDialog):
         frame_resumen.setObjectName("resumenFrame")
         frame_resumen.setFrameShape(QFrame.Shape.StyledPanel)
         resumen_layout = QVBoxLayout(frame_resumen)
+        resumen_layout.setContentsMargins(15, 15, 15, 15)
+        resumen_layout.setSpacing(12)
 
         titulo_resumen = QLabel("📈 RESUMEN GENERAL")
-        titulo_resumen.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        titulo_resumen.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         titulo_resumen.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        titulo_resumen.setStyleSheet("background: transparent; border: none; padding: 6px; color: #E6E6E6;")
+        titulo_resumen.setStyleSheet("background: transparent; border: none; padding: 8px; color: #1F2937;")
         resumen_layout.addWidget(titulo_resumen)
 
         grid_resumen = QGridLayout()
-        grid_resumen.setSpacing(10)
+        grid_resumen.setSpacing(12)
+        grid_resumen.setContentsMargins(10, 10, 10, 10)
 
         self.lbl_total_horas = QLabel("Total Horas Facturadas: 0.00 h")
         self.lbl_total_facturado = QLabel(f"Total Facturado: {self.moneda} 0.00")
@@ -235,15 +381,15 @@ class DialogoPreviewRendimientos(QDialog):
         self.lbl_rendimiento_neto = QLabel(f"Rendimiento Neto: {self.moneda} 0.00")
         self.lbl_margen_prom = QLabel("Margen Promedio: 0.00%")
 
-        base_style = "background: transparent; border: none; color: #90CAF9; font-size: 10pt;"
+        base_style = "background: transparent; border: none; color: #6B7280; font-size: 11pt; font-weight: 500;"
         for lbl in [self.lbl_total_horas, self.lbl_total_facturado, self.lbl_total_pagado, self.lbl_total_gastos]:
             lbl.setStyleSheet(base_style)
 
         self.lbl_rendimiento_neto.setStyleSheet(
-            "background: transparent; border: none; color: #4CAF50; font-weight: 700; font-size: 11pt;"
+            "background: transparent; border: none; color: #059669; font-weight: 700; font-size: 12pt;"
         )
         self.lbl_margen_prom.setStyleSheet(
-            "background: transparent; border: none; color: #90CAF9; font-weight: 700; font-size: 11pt;"
+            "background: transparent; border: none; color: #F59E0B; font-weight: 700; font-size: 12pt;"
         )
 
         grid_resumen.addWidget(self.lbl_total_horas,     0, 0)
@@ -258,14 +404,18 @@ class DialogoPreviewRendimientos(QDialog):
 
         # --- Botones de exportación ---
         botones_layout = QHBoxLayout()
+        botones_layout.setSpacing(10)
+        
         self.btn_pdf = QPushButton("📄 Exportar PDF")
         self.btn_excel = QPushButton("📊 Exportar Excel")
         self.btn_cerrar = QPushButton("❌ Cerrar")
+        
         self.btn_pdf.setProperty("class", "primary")
         self.btn_excel.setProperty("class", "primary")
         self.btn_cerrar.setProperty("class", "danger")
+        
         for b in (self.btn_pdf, self.btn_excel, self.btn_cerrar):
-            b.setStyleSheet("QPushButton { padding: 8px 14px; }")
+            b.setStyleSheet("QPushButton { padding: 10px 18px; }")
 
         botones_layout.addWidget(self.btn_pdf)
         botones_layout.addWidget(self.btn_excel)
@@ -274,12 +424,11 @@ class DialogoPreviewRendimientos(QDialog):
         layout.addLayout(botones_layout)
 
         # Estiramientos por orden de inserción:
-        # 0=filtros, 1=facturación, 2=rendimientos, 3=resumen, 4=botones
-        layout.setStretch(0, 0)
-        layout.setStretch(1, 3)
-        layout.setStretch(2, 3)
-        layout.setStretch(3, 2)
-        layout.setStretch(4, 0)
+        layout.setStretch(0, 0)  # filtros
+        layout.setStretch(1, 3)  # facturación
+        layout.setStretch(2, 3)  # rendimientos
+        layout.setStretch(3, 2)  # resumen
+        layout.setStretch(4, 0)  # botones
 
         # Conexiones
         self.btn_actualizar.clicked.connect(self.cargar_datos)
@@ -454,7 +603,7 @@ class DialogoPreviewRendimientos(QDialog):
                 self.tabla_rendimientos.setItem(row, 3, QTableWidgetItem(f"{self.moneda} {float(d['gastos_equipo']):,.2f}"))
                 rend_val = float(d["rendimiento_neto"])
                 item_rend = QTableWidgetItem(f"{self.moneda} {rend_val:,.2f}")
-                item_rend.setForeground(QColor("#2E7D32") if rend_val >= 0 else QColor("#D32F2F"))
+                item_rend.setForeground(QColor("#059669") if rend_val >= 0 else QColor("#DC2626"))
                 self.tabla_rendimientos.setItem(row, 4, item_rend)
                 self.tabla_rendimientos.setItem(row, 5, QTableWidgetItem(f"{float(d['margen_porcentaje']):.2f}%"))
 

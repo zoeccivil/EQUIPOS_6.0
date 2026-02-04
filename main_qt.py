@@ -18,6 +18,10 @@ import traceback
 import json
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
 from PyQt6.QtCore import QTimer
+from dashboard_ejecutivo import DashboardEjecutivo
+from gestor_combustible import GestorCombustible
+from cuentas_por_cobrar import CuentasPorCobrar
+from whatsapp_integration import WhatsAppIntegration
 
 # Importaciones internas
 from firebase_manager import FirebaseManager

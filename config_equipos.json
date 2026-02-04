@@ -8,7 +8,7 @@
     "ruta_backup_sqlite": "./backups/equipos_backup.db",
     "frecuencia": "diario",
     "hora_ejecucion": "02:00",
-    "ultimo_backup": "2026-01-19T17:06:22.337405"
+    "ultimo_backup": "2026-02-04T01:02:56.421838"
   },
   "app": {
     "tema": "claro",
