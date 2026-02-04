@@ -57,7 +57,7 @@ class CuentasPorCobrar(QWidget):
         
         self.kpi_pendiente = KPICard("Por Cobrar", "$0.00", color=AppTheme.COLORS["warning"])
         self.kpi_vencido = KPICard("Vencido", "$0.00", color=AppTheme.COLORS["danger"])
-        self.kpi_cobrado = KPICard("Cobrado (Mes)", "$0.00", color=AppTheme.COLORS["success"])
+        self.kpi_cobrado = KPICard("Total Cobrado", "$0.00", color=AppTheme.COLORS["success"])
         self.kpi_tasa = KPICard("Tasa de Recuperación", "0%", color=AppTheme.COLORS["primary"])
         
         kpis_layout.addWidget(self.kpi_pendiente, 0, 0)
@@ -135,15 +135,15 @@ class CuentasPorCobrar(QWidget):
             # Totales
             total_pendiente = 0.0
             total_vencido = 0.0
-            total_cobrado_mes = 0.0
-            total_original = 0.0
+            total_cobrado = 0.0
+            total_facturado = 0.0
             
             hoy = datetime.now().date()
             inicio_mes = hoy.replace(day=1)
             
             for alquiler in alquileres:
                 monto = float(alquiler.get("monto", 0))
-                total_original += monto
+                total_facturado += monto
                 
                 # Obtener abonos del alquiler
                 abonos = self.fm.obtener_abonos({"alquiler_id": alquiler.get("id")})
@@ -167,21 +167,23 @@ class CuentasPorCobrar(QWidget):
                 if pagado:
                     estado = "Pagado"
                     estado_tipo = "success"
-                    if fecha_vencimiento and fecha_vencimiento >= inicio_mes:
-                        total_cobrado_mes += monto
+                    total_cobrado += total_abonado
                 elif fecha_vencimiento and dias_diff > 0:
                     estado = "Vencido"
                     estado_tipo = "danger"
                     total_vencido += saldo
                     total_pendiente += saldo
+                    total_cobrado += total_abonado
                 elif fecha_vencimiento and dias_diff > -7:
                     estado = "Por Vencer"
                     estado_tipo = "warning"
                     total_pendiente += saldo
+                    total_cobrado += total_abonado
                 else:
                     estado = "Pendiente"
                     estado_tipo = "warning"
                     total_pendiente += saldo
+                    total_cobrado += total_abonado
                 
                 # Aplicar filtro de estado
                 if estado_filtro == "Pendientes" and pagado:
@@ -253,11 +255,11 @@ class CuentasPorCobrar(QWidget):
             # Actualizar KPIs
             self.kpi_pendiente.update_value(f"${total_pendiente:,.2f}")
             self.kpi_vencido.update_value(f"${total_vencido:,.2f}")
-            self.kpi_cobrado.update_value(f"${total_cobrado_mes:,.2f}")
+            self.kpi_cobrado.update_value(f"${total_cobrado:,.2f}")
             
-            # Calcular tasa de recuperación
-            if total_original > 0:
-                tasa = (total_cobrado_mes / total_original) * 100
+            # Calcular tasa de recuperación (cobrado/facturado)
+            if total_facturado > 0:
+                tasa = (total_cobrado / total_facturado) * 100
                 self.kpi_tasa.update_value(f"{tasa:.1f}%")
             else:
                 self.kpi_tasa.update_value("0%")

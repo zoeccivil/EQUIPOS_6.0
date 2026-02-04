@@ -588,7 +588,7 @@ class AppGUIModern(QMainWindow):
                     "- Credenciales incorrectas\n\n"
                     "Por favor, revise los logs y reinicie la aplicación.",
                 )
-            self.setWindowTitle("EQUIPOS 4.0 - ERROR DE CARGA")
+            self.setWindowTitle("EQUIPOS 6.0 MODERN - ERROR DE CARGA")
             QTimer.singleShot(1000, self.close)
 
     # ==================== Menú Archivo ====================
@@ -1028,7 +1028,7 @@ class AppGUIModern(QMainWindow):
     def _acerca_de(self):
         """Muestra información sobre la aplicación"""
         mensaje = """
-        <h2>EQUIPOS 4.0</h2>
+        <h2>EQUIPOS 6.0 MODERN</h2>
         <p><b>Sistema de Gestión de Alquiler de Equipos Pesados</b></p>
         <p>Versión: 4.0.0</p>
         <p>Desarrollado por: ZOEC Civil</p>
@@ -1041,7 +1041,7 @@ class AppGUIModern(QMainWindow):
         <p><i>© 2025 ZOEC Civil. Todos los derechos reservados.</i></p>
         """
 
-        QMessageBox.about(self, "Acerca de EQUIPOS 4.0", mensaje)
+        QMessageBox.about(self, "Acerca de EQUIPOS 6.0 MODERN", mensaje)
 
     def _abrir_documentacion(self):
         """Abre la documentación"""
@@ -1671,7 +1671,7 @@ class AppGUIModern(QMainWindow):
             )
 
             self.setWindowTitle(
-                f"EQUIPOS 4.0 - {len(self.equipos_mapa)} Equipos Totales"
+                f"EQUIPOS 6.0 MODERN - {len(self.equipos_mapa)} Equipos Totales"
             )
 
             mapas_completos = {
@@ -1738,7 +1738,7 @@ class AppGUIModern(QMainWindow):
                     "- Credenciales incorrectas\n\n"
                     "Por favor, revise los logs y reinicie la aplicación.",
                 )
-            self.setWindowTitle("EQUIPOS 4.0 - ERROR DE CARGA")
+            self.setWindowTitle("EQUIPOS 6.0 MODERN - ERROR DE CARGA")
             QTimer.singleShot(1000, self.close)
 
     # ------------------- Reporte de Rendimientos -------------------
