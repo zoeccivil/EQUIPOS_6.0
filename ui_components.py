@@ -1,447 +1,628 @@
 """
 Componentes UI Reutilizables para EQUIPOS 6.0
-Estilo moderno "Tierra & Asfalto"
+Componentes que replican exactamente el prototipo HTML
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QLabel, QFrame, QVBoxLayout, QHBoxLayout, 
-    QPushButton, QLineEdit, QGraphicsDropShadowEffect
+    QPushButton, QLabel, QFrame, QVBoxLayout, QHBoxLayout,
+    QWidget, QLineEdit, QGraphicsDropShadowEffect, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QFont, QColor, QIcon
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtGui import QFont, QColor, QPainter
 from app_theme_modern import ModernTheme
-from icons import get_icon, get_icon_pixmap
+from icons_material import get_material_icon
 
+
+# ============================================================
+# SIDEBAR BUTTON - Botón de navegación con icono
+# ============================================================
 
 class SidebarButton(QPushButton):
     """
-    Botón de navegación para el sidebar con iconos SVG y estados visuales.
+    Botón de navegación para el sidebar.
     
     Estados:
-    - Normal: Fondo transparente, texto gris claro
-    - Hover: Fondo semitransparente blanco
-    - Activo/Checked: Fondo amarillo, texto oscuro, negrita
+    - Normal: bg transparent, color #D1D5DB
+    - Hover: bg rgba(255,255,255,0.05), color white
+    - Active: bg #F59E0B, color #78350F, bold, shadow
     """
     
-    def __init__(self, text: str, icon_name: str = None, parent: QWidget = None):
+    def __init__(self, text: str, icon_name: str, parent=None):
         super().__init__(text, parent)
         self.icon_name = icon_name
+        self.is_active = False
+        
+        # Configuración básica
         self.setCheckable(True)
-        self.setMinimumHeight(48)
+        self.setMinimumHeight(44)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        # Configurar icono si se proporciona
-        if icon_name:
-            self._update_icon()
+        # Establecer icono
+        self._update_icon()
+        self.setIconSize(QSize(20, 20))
         
-        # Estilo inicial
+        # Aplicar estilo
         self._apply_style()
         
-        # Conectar señales para actualizar iconos
+        # Conectar señales
         self.toggled.connect(self._on_toggled)
     
-    def _apply_style(self):
-        """Aplica el estilo CSS al botón"""
-        c = ModernTheme.COLORS
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {c['text_sidebar_muted']};
-                border: none;
-                border-radius: 8px;
-                padding: 12px 16px;
-                text-align: left;
-                font-size: 14px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                background-color: {c['bg_sidebar_hover']};
-                color: {c['text_sidebar']};
-            }}
-            QPushButton:checked {{
-                background-color: {c['primary']};
-                color: {c['primary_text']};
-                font-weight: 700;
-            }}
-        """)
-    
     def _update_icon(self):
-        """Actualiza el icono según el estado del botón"""
-        if not self.icon_name:
-            return
-        
-        # Color del icono según estado
-        if self.isChecked():
-            color = ModernTheme.COLORS['primary_text']
+        """Actualiza el icono según el estado"""
+        if self.is_active:
+            color = ModernTheme.COLORS['primary_text']  # #78350F
         else:
-            color = ModernTheme.COLORS['text_sidebar_muted']
+            color = ModernTheme.COLORS['text_sidebar_inactive']  # #D1D5DB
         
-        icon = get_icon(self.icon_name, color)
+        icon = get_material_icon(self.icon_name, color, 20)
         self.setIcon(icon)
-        self.setIconSize(QSize(20, 20))
     
-    def _on_toggled(self, checked: bool):
-        """Actualiza el icono cuando cambia el estado"""
-        self._update_icon()
-
-
-class StatCard(QFrame):
-    """
-    Tarjeta KPI moderna con icono, título, valor y barra de color.
-    Replica el diseño de las tarjetas del prototipo HTML.
-    
-    Args:
-        title: Título de la métrica (ej: "Ingresos Totales")
-        value: Valor principal (ej: "RD$ 250,000")
-        icon_name: Nombre del icono SVG
-        accent_color: Color de acento para el icono y barra inferior
-        footer_text: Texto adicional en el pie (opcional)
-    """
-    
-    def __init__(self, title: str, value: str = "N/A", icon_name: str = None,
-                 accent_color: str = None, footer_text: str = None, parent: QWidget = None):
-        super().__init__(parent)
-        self.accent_color = accent_color or ModernTheme.COLORS['primary']
+    def _apply_style(self):
+        """Aplica el estilo QSS al botón"""
+        c = ModernTheme.COLORS
         
-        # Configurar frame
-        self.setProperty("class", "card")
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {ModernTheme.COLORS['bg_card']};
-                border: 1px solid {ModernTheme.COLORS['border']};
-                border-radius: 12px;
-                padding: 0px;
-            }}
-        """)
-        
-        # Layout principal
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 16)
-        main_layout.setSpacing(12)
-        
-        # Header: icono + título
-        header_layout = QHBoxLayout()
-        header_layout.setSpacing(12)
-        
-        # Icono en círculo de color
-        if icon_name:
-            icon_container = QFrame()
-            icon_container.setFixedSize(40, 40)
-            icon_container.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {self.accent_color}20;
-                    border-radius: 20px;
+        if self.is_active:
+            # Estado activo: amarillo con sombra
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {c['primary']};
+                    color: {c['primary_text']};
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px 16px;
+                    text-align: left;
+                    font-size: 14px;
+                    font-weight: 700;
                 }}
             """)
             
-            icon_layout = QHBoxLayout(icon_container)
-            icon_layout.setContentsMargins(0, 0, 0, 0)
-            
-            icon_label = QLabel()
-            pixmap = get_icon_pixmap(icon_name, self.accent_color, (20, 20))
-            icon_label.setPixmap(pixmap)
-            icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            icon_layout.addWidget(icon_label)
-            
-            header_layout.addWidget(icon_container)
-        
-        # Título
-        self.title_label = QLabel(title)
-        self.title_label.setStyleSheet(f"""
-            color: {ModernTheme.COLORS['text_muted']};
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        """)
-        header_layout.addWidget(self.title_label)
-        header_layout.addStretch()
-        
-        main_layout.addLayout(header_layout)
-        
-        # Valor principal
-        self.value_label = QLabel(value)
-        value_font = QFont("Segoe UI", 28)
-        value_font.setWeight(QFont.Weight.Bold)
-        self.value_label.setFont(value_font)
-        self.value_label.setStyleSheet(f"color: {ModernTheme.COLORS['text_main']};")
-        main_layout.addWidget(self.value_label)
-        
-        # Footer (opcional)
-        if footer_text:
-            self.footer_label = QLabel(footer_text)
-            self.footer_label.setStyleSheet(f"""
-                color: {ModernTheme.COLORS['text_muted']};
-                font-size: 12px;
-            """)
-            main_layout.addWidget(self.footer_label)
+            # Agregar sombra
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(6)
+            shadow.setColor(QColor(245, 158, 11, 77))  # rgba(245, 158, 11, 0.3)
+            shadow.setOffset(0, 4)
+            self.setGraphicsEffect(shadow)
         else:
-            self.footer_label = None
+            # Estado normal/hover
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {c['text_sidebar_inactive']};
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px 16px;
+                    text-align: left;
+                    font-size: 14px;
+                    font-weight: 500;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: {c['text_sidebar']};
+                }}
+            """)
+            self.setGraphicsEffect(None)
+    
+    def _on_toggled(self, checked: bool):
+        """Callback cuando se togglea el botón"""
+        self.is_active = checked
+        self._update_icon()
+        self._apply_style()
+    
+    def setActive(self, active: bool):
+        """Establece el estado activo programáticamente"""
+        self.setChecked(active)
+
+
+# ============================================================
+# STAT CARD - Tarjeta KPI con icono y barra de color
+# ============================================================
+
+class StatCard(QFrame):
+    """Tarjeta KPI del dashboard."""
+    
+    def __init__(
+        self,
+        title: str,
+        value: str,
+        icon_name: str,
+        accent_color: str,
+        footer_text: str = "",
+        parent=None
+    ):
+        super().__init__(parent)
+        self.accent_color = accent_color
         
-        main_layout.addStretch()
+        # Configuración del frame
+        self.setObjectName("modern_card")
+        self.setMinimumHeight(160)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
-        # Barra de color inferior
-        color_bar = QFrame()
-        color_bar.setFixedHeight(4)
-        color_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {self.accent_color}80;
-                border: none;
-                border-radius: 0px;
-                border-bottom-left-radius: 12px;
-                border-bottom-right-radius: 12px;
+        # Layout principal
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 16)
+        layout.setSpacing(12)
+        
+        # Header: icono + label
+        header = QHBoxLayout()
+        header.setSpacing(12)
+        
+        # Icon box
+        icon_map = {
+            "attach_money": "💰",
+            "pending_actions": "⏳",
+            "trending_up": "📈",
+            "precision_manufacturing": "📊",
+        }
+        
+        icon_box = QLabel(icon_map.get(icon_name, "📊"))
+        icon_box.setFixedSize(40, 40)
+        icon_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Background del icono
+        icon_bg_color = self._lighten_color(accent_color)
+        icon_box.setStyleSheet(f"""
+            QLabel {{
+                background-color: {icon_bg_color};
+                border-radius: 8px;
+                font-size: 20px;
             }}
         """)
-        main_layout.addWidget(color_bar)
+        header.addWidget(icon_box)
         
-        # Sombra sutil
+        header.addStretch()
+        
+        # ✅ LABEL DEL TÍTULO (sin fondo gris)
+        label = QLabel(title.upper())
+        label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_muted']};
+                font-size: 12px;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+                background-color: transparent;  /* ✅ SIN FONDO */
+            }}
+        """)
+        header.addWidget(label)
+        
+        layout.addLayout(header)
+        
+        # ✅ VALOR PRINCIPAL (sin fondo gris)
+        self.value_label = QLabel(value)
+        self.value_label.setObjectName("kpi_value")
+        self.value_label.setStyleSheet(f"""
+            QLabel#kpi_value {{
+                color: {ModernTheme.COLORS['text_main']};
+                font-size: 28px;
+                font-weight: 800;
+                background-color: transparent;  /* ✅ SIN FONDO */
+            }}
+        """)
+        layout.addWidget(self.value_label)
+        
+        # ✅ FOOTER (sin fondo gris)
+        self.footer_label = QLabel(footer_text)
+        self.footer_label.setObjectName("kpi_footer")
+        self.footer_label.setStyleSheet(f"""
+            QLabel#kpi_footer {{
+                color: {ModernTheme.COLORS['text_muted']};
+                font-size: 12px;
+                background-color: transparent;  /* ✅ SIN FONDO */
+            }}
+        """)
+        layout.addWidget(self.footer_label)
+        
+        layout.addStretch()
+        
+        # Barra de progreso
+        self.progress_container = QFrame()
+        self.progress_container.setFixedHeight(4)
+        self.progress_container.setStyleSheet(f"""
+            QFrame {{
+                background-color: {accent_color};
+                border-radius: 2px;
+            }}
+        """)
+        layout.addWidget(self.progress_container)
+        
+        # ✅ ESTILO DEL CARD (fondo blanco limpio)
+        self.setStyleSheet(f"""
+            QFrame#modern_card {{
+                background-color: {ModernTheme.COLORS['bg_card']};
+                border: 1px solid {ModernTheme.COLORS['border']};
+                border-radius: 12px;
+            }}
+            /* ✅ Asegurar que todos los QLabel hijos tengan fondo transparente */
+            QFrame#modern_card QLabel {{
+                background-color: transparent;
+            }}
+        """)
+        
+        # Sombra
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(10)
-        shadow.setColor(QColor(0, 0, 0, 25))
-        shadow.setOffset(0, 2)
+        shadow.setBlurRadius(3)
+        shadow.setColor(QColor(0, 0, 0, 13))
+        shadow.setOffset(0, 1)
         self.setGraphicsEffect(shadow)
     
-    def update_value(self, value: str, footer_text: str = None):
-        """Actualiza el valor y el footer de la tarjeta"""
+    
+    def _lighten_color(self, hex_color: str) -> str:
+        """Genera un color más claro para el fondo del icono"""
+        color_map = {
+            '#3B82F6': '#EFF6FF',  # Azul
+            '#F59E0B': '#FFFBEB',  # Amarillo
+            '#10B981': '#ECFDF5',  # Verde
+            '#6366F1': '#EEF2FF',  # Morado
+        }
+        return color_map.get(hex_color, '#F3F4F6')
+    
+    def set_value(self, value: str):
+        """Actualiza el valor del KPI"""
         self.value_label.setText(value)
-        if footer_text and self.footer_label:
-            self.footer_label.setText(footer_text)
+    
+    def set_footer(self, text: str):
+        """Actualiza el texto del footer"""
+        self.footer_label.setText(text)
 
+
+# ============================================================
+# STATUS BADGE - Píldora de estado (Pagado/Pendiente/Vencido)
+# ============================================================
 
 class StatusBadge(QLabel):
     """
-    Etiqueta tipo píldora para estados (pagado, pendiente, vencido).
+    Badge tipo píldora para indicar estados.
     
-    Métodos de conveniencia:
-    - setPaid(): Estilo verde para "Pagado"
-    - setPending(): Estilo amarillo para "Pendiente"
-    - setOverdue(): Estilo rojo para "Vencido"
+    Variantes:
+    - Pagado: Verde #DCFCE7 / #166534
+    - Pendiente: Amarillo #FEF3C7 / #92400E
+    - Vencido: Rojo #FEE2E2 / #991B1B
     """
     
-    def __init__(self, text: str = "", status_type: str = "default", parent: QWidget = None):
-        super().__init__(text, parent)
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setMaximumWidth(120)
-        self._apply_status(status_type)
-    
-    def _apply_status(self, status_type: str):
-        """Aplica el estilo según el tipo de estado"""
-        c = ModernTheme.COLORS
+        self.setFixedHeight(28)
+        self.setMinimumWidth(100)
         
-        styles = {
-            'success': (c['success_bg'], c['success_text']),
-            'paid': (c['success_bg'], c['success_text']),
-            'warning': (c['warning_bg'], c['warning_text']),
-            'pending': (c['warning_bg'], c['warning_text']),
-            'danger': (c['danger_bg'], c['danger_text']),
-            'overdue': (c['danger_bg'], c['danger_text']),
-            'default': (c['border'], c['text_muted'])
-        }
-        
-        bg_color, text_color = styles.get(status_type, styles['default'])
-        
-        self.setStyleSheet(f"""
+        # Estilo base de píldora
+        self._base_style = """
             QLabel {{
-                background-color: {bg_color};
-                color: {text_color};
-                border-radius: 20px;
-                padding: 4px 10px;
-                font-size: 11px;
+                background-color: {bg};
+                color: {text};
+                border-radius: 14px;
+                padding: 4px 12px;
+                font-size: 12px;
                 font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.3px;
             }}
-        """)
+        """
     
     def setPaid(self):
-        """Configura el badge como 'Pagado' (verde)"""
-        self.setText("Pagado")
-        self._apply_status('paid')
+        """Estado: Pagado (verde)"""
+        c = ModernTheme.COLORS
+        self.setStyleSheet(self._base_style.format(
+            bg=c['success_bg'],
+            text=c['success_text']
+        ))
+        self.setText("✓ Pagado")
     
     def setPending(self):
-        """Configura el badge como 'Pendiente' (amarillo)"""
-        self.setText("Pendiente")
-        self._apply_status('pending')
+        """Estado: Pendiente (amarillo)"""
+        c = ModernTheme.COLORS
+        self.setStyleSheet(self._base_style.format(
+            bg=c['warning_bg'],
+            text=c['warning_text']
+        ))
+        self.setText("⏰ Pendiente")
     
     def setOverdue(self):
-        """Configura el badge como 'Vencido' (rojo)"""
-        self.setText("Vencido")
-        self._apply_status('overdue')
+        """Estado: Vencido (rojo)"""
+        c = ModernTheme.COLORS
+        self.setStyleSheet(self._base_style.format(
+            bg=c['danger_bg'],
+            text=c['danger_text']
+        ))
+        self.setText("⚠ Vencido")
     
-    def setStatus(self, status_text: str, status_type: str):
-        """Configura texto y estilo manualmente"""
-        self.setText(status_text)
-        self._apply_status(status_type)
+    def setCustom(self, text: str, bg_color: str, text_color: str):
+        """Estado personalizado"""
+        self.setStyleSheet(self._base_style.format(
+            bg=bg_color,
+            text=text_color
+        ))
+        self.setText(text)
 
+
+# ============================================================
+# BRAND HEADER - Logo "Z" + Texto
+# ============================================================
+
+class BrandHeader(QWidget):
+    """Logo y título de la marca en el sidebar"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background-color: transparent;")
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 16)
+        layout.setSpacing(12)
+        
+        # Logo circular
+        logo_label = QLabel("Z")
+        logo_label.setFixedSize(48, 48)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {ModernTheme.COLORS['primary']};
+                color: {ModernTheme.COLORS['primary_text']};
+                border-radius: 24px;
+                font-size: 24px;
+                font-weight: 700;
+            }}
+        """)
+        layout.addWidget(logo_label)
+        
+        # Texto
+        text_container = QWidget()
+        text_container.setStyleSheet("background-color: transparent;")
+        text_layout = QVBoxLayout(text_container)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(0)
+        
+        title = QLabel("ZOEC CIVIL")
+        title.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_sidebar']};
+                font-size: 14px;
+                font-weight: 700;
+                background-color: transparent;
+            }}
+        """)
+        
+        subtitle = QLabel("EQUIPOS PESADOS")
+        subtitle.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_sidebar_muted']};
+                font-size: 10px;
+                font-weight: 500;
+                background-color: transparent;
+            }}
+        """)
+        
+        text_layout.addWidget(title)
+        text_layout.addWidget(subtitle)
+        layout.addWidget(text_container)
+        layout.addStretch()
+
+
+# ============================================================
+# TOP BAR - Barra superior con título y búsqueda
+# ============================================================
 
 class TopBar(QWidget):
     """
     Barra superior de navegación con título y búsqueda.
-    
-    Args:
-        title: Título de la página actual
-        show_search: Si True, muestra la barra de búsqueda
     """
     
-    def __init__(self, title: str = "", show_search: bool = True, parent: QWidget = None):
+    searchRequested = pyqtSignal(str)
+    
+    def __init__(self, title: str = "Dashboard", show_search: bool = True, parent=None):
         super().__init__(parent)
         self.setFixedHeight(70)
         
-        # Estilo del widget
-        self.setStyleSheet(f"""
-            QWidget {{
-                background-color: {ModernTheme.COLORS['bg_card']};
-                border-bottom: 1px solid {ModernTheme.COLORS['border']};
+        # Layout horizontal
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(32, 0, 32, 0)
+        layout.setSpacing(20)
+        
+        # ✅ TÍTULO CON ESTILO MEJORADO
+        self.title_label = QLabel(title)
+        self.title_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_main']};
+                font-size: 24px;  /* ✅ Más grande */
+                font-weight: 800;  /* ✅ Más bold */
+                background-color: transparent;
             }}
         """)
-        
-        # Layout principal
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(24, 0, 24, 0)
-        layout.setSpacing(16)
-        
-        # Título
-        self.title_label = QLabel(title)
-        title_font = QFont("Segoe UI", 20)
-        title_font.setWeight(QFont.Weight.Bold)
-        self.title_label.setFont(title_font)
-        self.title_label.setStyleSheet(f"color: {ModernTheme.COLORS['text_main']};")
         layout.addWidget(self.title_label)
         
         layout.addStretch()
         
-        # Barra de búsqueda (opcional)
+        # Barra de búsqueda
         if show_search:
-            self.search_input = QLineEdit()
-            self.search_input.setPlaceholderText("Buscar...")
-            self.search_input.setFixedWidth(300)
-            self.search_input.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: {ModernTheme.COLORS['bg_body']};
+            search_container = QFrame()
+            search_container.setFixedWidth(300)
+            search_container.setFixedHeight(40)
+            search_container.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {ModernTheme.COLORS['input_bg']};
                     border: 1px solid {ModernTheme.COLORS['border']};
                     border-radius: 8px;
-                    padding: 8px 12px 8px 36px;
-                    font-size: 14px;
-                }}
-                QLineEdit:focus {{
-                    border: 2px solid {ModernTheme.COLORS['primary']};
-                    padding: 7px 11px 7px 35px;
                 }}
             """)
             
-            # Icono de búsqueda (placeholder visual)
-            search_icon_label = QLabel()
-            search_icon_pixmap = get_icon_pixmap('search', ModernTheme.COLORS['text_muted'], (16, 16))
-            search_icon_label.setPixmap(search_icon_pixmap)
-            search_icon_label.setStyleSheet("background: transparent; border: none;")
-            
-            # Container para superponer icono y input
-            search_container = QWidget()
             search_layout = QHBoxLayout(search_container)
-            search_layout.setContentsMargins(12, 0, 0, 0)
-            search_layout.setSpacing(0)
-            search_layout.addWidget(search_icon_label)
+            search_layout.setContentsMargins(16, 0, 16, 0)
+            search_layout.setSpacing(10)
+            
+            # Icono
+            search_icon = QLabel("🔍")
+            search_icon.setStyleSheet("font-size: 16px; background-color: transparent;")
+            search_layout.addWidget(search_icon)
+            
+            # Input
+            self.search_input = QLineEdit()
+            self.search_input.setPlaceholderText("Buscar equipo, cliente o ID...")
+            self.search_input.setStyleSheet(f"""
+                QLineEdit {{
+                    background-color: transparent;
+                    border: none;
+                    color: {ModernTheme.COLORS['text_main']};
+                    font-size: 14px;
+                }}
+                QLineEdit::placeholder {{
+                    color: {ModernTheme.COLORS['text_muted']};
+                }}
+            """)
+            self.search_input.returnPressed.connect(self._on_search)
             search_layout.addWidget(self.search_input)
             
-            layout.addWidget(self.search_input)
-        else:
-            self.search_input = None
-    
-    def set_title(self, title: str):
-        """Actualiza el título de la barra"""
-        self.title_label.setText(title)
-
-
-class ModernCard(QFrame):
-    """
-    Contenedor de tarjeta genérico con fondo blanco y bordes redondeados.
-    Ideal para agrupar contenido con sombra sutil.
-    
-    Args:
-        title: Título opcional de la tarjeta
-        padding: Padding interior en píxeles
-    """
-    
-    def __init__(self, title: str = None, padding: int = 20, parent: QWidget = None):
-        super().__init__(parent)
+            layout.addWidget(search_container)
         
-        # Estilo
+        # ✅ ESTILO MEJORADO (fondo diferenciado)
         self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {ModernTheme.COLORS['bg_card']};
-                border: 1px solid {ModernTheme.COLORS['border']};
-                border-radius: 12px;
+            QWidget {{
+                background-color: #FAFAFA;  /* ✅ Gris muy claro (casi blanco pero diferenciado) */
+                border-bottom: 1px solid {ModernTheme.COLORS['border']};
             }}
         """)
+    
+    def setTitle(self, title: str):
+        """Cambia el título"""
+        self.title_label.setText(title)
+    
+    def _on_search(self):
+        """Emite señal de búsqueda"""
+        text = self.search_input.text().strip()
+        if text:
+            self.searchRequested.emit(text)
+    
+    def setTitle(self, title: str):
+        """Cambia el título"""
+        self.title_label.setText(title)
+    
+    def _on_search(self):
+        """Emite señal de búsqueda"""
+        text = self.search_input.text().strip()
+        if text:
+            self.searchRequested.emit(text)
+
+
+# ============================================================
+# MODERN CARD - Contenedor blanco con sombra
+# ============================================================
+
+class ModernCard(QFrame):
+    """Contenedor tipo tarjeta con fondo blanco, borde y sombra."""
+    
+    def __init__(self, title: str = None, padding: int = 20, parent=None):
+        super().__init__(parent)
+        self.setObjectName("modern_card")
         
-        # Layout principal
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(padding, padding, padding, padding)
         self.main_layout.setSpacing(16)
         
-        # Título si se proporciona
         if title:
             title_label = QLabel(title)
-            title_font = QFont("Segoe UI", 16)
-            title_font.setWeight(QFont.Weight.Bold)
-            title_label.setFont(title_font)
-            title_label.setStyleSheet(f"color: {ModernTheme.COLORS['text_main']};")
+            title_label.setStyleSheet(f"""
+                QLabel {{
+                    color: {ModernTheme.COLORS['text_main']};
+                    font-size: 16px;
+                    font-weight: 700;
+                    background-color: transparent;  /* ✅ CRÍTICO */
+                }}
+            """)
             self.main_layout.addWidget(title_label)
         
-        # Sombra
+        # ✅ ESTILO MEJORADO (forzar transparencia en hijos)
+        self.setStyleSheet(f"""
+            QFrame#modern_card {{
+                background-color: {ModernTheme.COLORS['bg_card']};
+                border: 1px solid {ModernTheme.COLORS['border']};
+                border-radius: 12px;
+            }}
+            /* ✅ FORZAR que TODOS los QLabel dentro sean transparentes */
+            QFrame#modern_card QLabel {{
+                background-color: transparent;
+            }}
+            /* ✅ También los QFrame internos */
+            QFrame#modern_card QFrame {{
+                background-color: transparent;
+            }}
+        """)
+        
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(10)
-        shadow.setColor(QColor(0, 0, 0, 20))
-        shadow.setOffset(0, 2)
+        shadow.setBlurRadius(3)
+        shadow.setColor(QColor(0, 0, 0, 13))
+        shadow.setOffset(0, 1)
         self.setGraphicsEffect(shadow)
     
     def add_widget(self, widget: QWidget):
-        """Añade un widget al contenido de la tarjeta"""
+        """Agrega un widget"""
         self.main_layout.addWidget(widget)
     
     def add_layout(self, layout):
-        """Añade un layout al contenido de la tarjeta"""
+        """Agrega un layout"""
         self.main_layout.addLayout(layout)
 
 
+# ============================================================
+# MODERN BUTTON - Botón con variantes
+# ============================================================
+
 class ModernButton(QPushButton):
-    """
-    Botón moderno con estilos predefinidos.
+    """Botón moderno con variantes de estilo."""
     
-    Args:
-        text: Texto del botón
-        button_type: Tipo ('primary', 'secondary', 'success', 'danger')
-        icon_name: Nombre del icono SVG (opcional)
-    """
-    
-    def __init__(self, text: str, button_type: str = "primary", 
-                 icon_name: str = None, parent: QWidget = None):
+    def __init__(self, text: str, button_type: str = "secondary", icon_name: str = None, parent=None):
         super().__init__(text, parent)
         self.button_type = button_type
         self.icon_name = icon_name
         
-        # Configurar icono
-        if icon_name:
-            self._set_icon()
-        
-        # Aplicar clase CSS
-        self.setProperty("class", button_type)
+        self.setMinimumHeight(40)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-    
-    def _set_icon(self):
-        """Configura el icono del botón"""
-        if not self.icon_name:
-            return
         
-        # Color del icono según tipo
-        color_map = {
-            'primary': ModernTheme.COLORS['primary_text'],
-            'secondary': ModernTheme.COLORS['text_main'],
-            'success': '#FFFFFF',
-            'danger': '#FFFFFF'
+        if icon_name:
+            self.setIconSize(QSize(20, 20))
+        
+        self._apply_style()
+    
+    def _apply_style(self):
+        """Aplica el estilo según el tipo"""
+        c = ModernTheme.COLORS
+        
+        styles = {
+            'primary': f"""
+                QPushButton {{
+                    background-color: {c['primary']};
+                    color: {c['primary_text']};
+                    border: none;
+                    border-radius: 6px;
+                    padding: 10px 20px;
+                    font-weight: 600;
+                    font-size: 14px;
+                }}
+                QPushButton:hover {{
+                    background-color: {c['primary_hover']};
+                }}
+            """,
+            'secondary': f"""
+                QPushButton {{
+                    background-color: {c['bg_card']};
+                    color: {c['text_main']};
+                    border: 1px solid {c['border']};
+                    border-radius: 6px;
+                    padding: 10px 20px;
+                    font-weight: 600;
+                    font-size: 14px;
+                }}
+                QPushButton:hover {{
+                    background-color: {c['hover_bg']};
+                }}
+            """,
         }
         
-        color = color_map.get(self.button_type, ModernTheme.COLORS['text_main'])
-        icon = get_icon(self.icon_name, color)
-        self.setIcon(icon)
-        self.setIconSize(QSize(18, 18))
+        self.setStyleSheet(styles.get(self.button_type, styles['secondary']))
+
+
+__all__ = [
+    'SidebarButton',
+    'StatCard',
+    'StatusBadge',
+    'BrandHeader',
+    'TopBar',
+    'ModernCard',
+    'ModernButton',
+]

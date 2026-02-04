@@ -1,361 +1,608 @@
 """
-Dashboard Tab para EQUIPOS 6.0
-Diseño moderno con sistema "Tierra & Asfalto"
-- StatCard para métricas con iconos SVG
-- StatusBadge para estados en tabla
-- Tabla de alquileres recientes
-- Filtrado por Año, Mes y Equipo (equipo_id en userData)
-- Cálculos de tops basados en ingresos_data
+Dashboard Moderno - Vista Principal con KPIs y Actividad Reciente
+Replica exactamente el diseño del prototipo HTML con todas las correcciones visuales
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox,
-    QGroupBox, QTableWidget, QTableWidgetItem, QFrame
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QComboBox, QTableWidget, QTableWidgetItem,
+    QHeaderView, QFrame, QPushButton, QAbstractItemView,
+    QSizePolicy
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor
-from datetime import datetime
-from firebase_manager import FirebaseManager
-from app_theme_modern import ModernTheme
-from ui_components import StatCard, StatusBadge, ModernCard
-import logging
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
+from datetime import datetime, timedelta
+from typing import Dict, Any, List
 
-logger = logging.getLogger(__name__)
+from app_theme_modern import ModernTheme
+from ui_components import StatCard, StatusBadge, ModernCard, ModernButton
 
 
 class DashboardTab(QWidget):
     """
-    Widget que muestra KPIs y alquileres recientes.
-    Espera que firebase_manager exponga:
-      - obtener_estadisticas_dashboard(filtros: {ano, mes, equipo_id})
-        -> {
-             "ingresos_totales": float,
-             "gastos_totales": float,
-             "pendiente_cobro": float,
-             "utilidad_neta": float,
-             "ocupacion_pct": float (0-100),
-             "ingresos_data": [
-                 {"equipo_id": str/int, "operador_id": str/int, "monto": float, "monto_facturado": float?, "total": float?, "horas": float?, "horas_operadas": float?},
-                 ...
-             ]
-           }
-      - obtener_alquileres_recientes(filtros: {ano, mes, equipo_id, limit})
-        -> [
-             {"id": str, "equipo_id": str/int, "equipo_nombre": str, "placa": str,
-              "cliente_nombre": str, "fecha": "YYYY-MM-DD", "monto": float,
-              "estado": "pagado"|"pendiente"|"vencido"}
-           ]
+    Vista del Dashboard moderno con KPIs y tabla de actividad reciente.
+    
+    CORRECCIONES APLICADAS:
+    - ✅ Filtros sin fondos visibles
+    - ✅ Líneas de progreso dentro de cards
+    - ✅ Iconos visibles con emojis
+    - ✅ Tabla expandida hasta el final
+    - ✅ Estilo consistente
     """
-
-    def __init__(self, firebase_manager: FirebaseManager, parent=None):
+    
+    recargar_dashboard = pyqtSignal()
+    
+    def __init__(self, firebase_manager, config=None, storage_manager=None, parent=None):
         super().__init__(parent)
         self.fm = firebase_manager
-
-        self.meses_mapa = {
-            "Enero": 1, "Febrero": 2, "Marzo": 3, "Abril": 4, "Mayo": 5, "Junio": 6,
-            "Julio": 7, "Agosto": 8, "Septiembre": 9, "Octubre": 10, "Noviembre": 11, "Diciembre": 12
-        }
-
-        # Mapas (se llenarán desde app_gui)
-        self.equipos_mapa_nombre_id = {}  # nombre -> id
-        self.equipos_mapa_id_nombre = {}  # id -> nombre
-        self.operadores_mapa_id_nombre = {}  # id -> nombre
-
+        self.config = config if config else {'app': {'moneda': 'RD$'}}
+        self.sm = storage_manager
+        
+        # Variables de estado
+        self.ano_actual = datetime.now().year
+        self.mes_actual = datetime.now().month
+        self.equipo_filtro = None
+        
+        # Mapas de nombres (se actualizan desde app_gui)
+        self.equipos_mapa = {}
+        self.clientes_mapa = {}
+        self.operadores_mapa = {}
+        
+        # Datos calculados
+        self.kpi_data = {}
+        self.actividad_reciente = []
+        
         self._setup_ui()
-        self._configurar_filtros_inicial()
-        self.clientes_mapa_id_nombre = {}
-
-    # ---------------- UI ----------------
-
+    
     def _setup_ui(self):
+        """Configura la interfaz del dashboard"""
+        # Layout principal con padding
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-
-        # === Filtros en tarjeta moderna ===
-        filtros_card = ModernCard(padding=16)
-        filtros_layout = QHBoxLayout()
-
-        filtros_layout.addWidget(QLabel("Año:"))
-        self.combo_anio = QComboBox()
-        self.combo_anio.setProperty("class", "secondary")
-        filtros_layout.addWidget(self.combo_anio)
-
-        filtros_layout.addWidget(QLabel("Mes:"))
-        self.combo_mes = QComboBox()
-        self.combo_mes.setProperty("class", "secondary")
-        self.combo_mes.addItems(self.meses_mapa.keys())
-        filtros_layout.addWidget(self.combo_mes)
-
-        filtros_layout.addWidget(QLabel("Equipo:"))
-        self.combo_equipo = QComboBox()
-        self.combo_equipo.setProperty("class", "secondary")
-        filtros_layout.addWidget(self.combo_equipo)
-        filtros_layout.addStretch()
-
-        filtros_card.add_layout(filtros_layout)
-        main_layout.addWidget(filtros_card, stretch=0)
-
-        # === Grid de Tarjetas KPI Modernas (4 columnas) ===
-        grid_layout = QGridLayout()
-        grid_layout.setSpacing(20)
-        grid_layout.setContentsMargins(0, 0, 0, 0)
-
-        # 4 KPIs principales con iconos y colores
-        self.card_ingresos = StatCard(
-            "Ingresos Totales", 
-            "RD$ 0.00", 
+        main_layout.setContentsMargins(32, 32, 32, 32)
+        main_layout.setSpacing(24)
+        
+        # ========== FILTROS ==========
+        filtros_card = self._crear_filtros()
+        main_layout.addWidget(filtros_card)
+        
+        # ========== GRID DE KPIs (4 columnas) ==========
+        self.kpis_grid = QGridLayout()
+        self.kpis_grid.setSpacing(24)
+        
+        # Crear las 4 tarjetas KPI
+        self.kpi_ingresos = StatCard(
+            title="Ingresos Totales",
+            value="RD$ 0.00",
             icon_name="attach_money",
-            accent_color=ModernTheme.COLORS["secondary"]
+            accent_color="#3B82F6",
+            footer_text="Cargando..."
         )
-        grid_layout.addWidget(self.card_ingresos, 0, 0)
-
-        self.card_pendiente = StatCard(
-            "Pendiente Cobro", 
-            "RD$ 0.00", 
+        
+        self.kpi_pendiente = StatCard(
+            title="Pendiente Cobro",
+            value="RD$ 0.00",
             icon_name="pending_actions",
-            accent_color=ModernTheme.COLORS["primary"]
+            accent_color="#F59E0B",
+            footer_text="Cargando..."
         )
-        grid_layout.addWidget(self.card_pendiente, 0, 1)
-
-        self.card_utilidad = StatCard(
-            "Utilidad Neta", 
-            "RD$ 0.00", 
+        
+        self.kpi_utilidad = StatCard(
+            title="Utilidad Neta",
+            value="RD$ 0.00",
             icon_name="trending_up",
-            accent_color="#10B981"  # Verde
+            accent_color="#10B981",
+            footer_text="Cargando..."
         )
-        grid_layout.addWidget(self.card_utilidad, 0, 2)
-
-        self.card_ocupacion = StatCard(
-            "Ocupación Equipos", 
-            "0.00%", 
+        
+        self.kpi_ocupacion = StatCard(
+            title="Ocupación",
+            value="0%",
             icon_name="precision_manufacturing",
-            accent_color="#6366F1"  # Morado
+            accent_color="#6366F1",
+            footer_text="Cargando..."
         )
-        grid_layout.addWidget(self.card_ocupacion, 0, 3)
-
-        # Segunda fila: Tops (2 columnas cada uno)
-        self.card_top_equipo = StatCard(
-            "Equipo Más Rentable", 
-            "N/A",
-            icon_name="agriculture",
-            accent_color=ModernTheme.COLORS["primary"]
-        )
-        grid_layout.addWidget(self.card_top_equipo, 1, 0, 1, 2)
-
-        self.card_top_operador = StatCard(
-            "Operador con Más Horas", 
-            "N/A",
-            icon_name="person",
-            accent_color=ModernTheme.COLORS["secondary"]
-        )
-        grid_layout.addWidget(self.card_top_operador, 1, 2, 1, 2)
-
-        main_layout.addLayout(grid_layout, stretch=0)
-
-        # === Tabla de Alquileres Recientes en tarjeta moderna ===
-        tabla_card = ModernCard(title="Actividad Reciente", padding=0)
         
-        # Container interno para la tabla
-        tabla_container = QWidget()
-        tabla_layout = QVBoxLayout(tabla_container)
-        tabla_layout.setContentsMargins(0, 0, 0, 0)
-        tabla_layout.setSpacing(0)
+        # Agregar al grid
+        self.kpis_grid.addWidget(self.kpi_ingresos, 0, 0)
+        self.kpis_grid.addWidget(self.kpi_pendiente, 0, 1)
+        self.kpis_grid.addWidget(self.kpi_utilidad, 0, 2)
+        self.kpis_grid.addWidget(self.kpi_ocupacion, 0, 3)
         
-        self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels([
-            "ID", "Equipo", "Cliente", "Fecha", "Monto", "Estado", ""
+        main_layout.addLayout(self.kpis_grid)
+        
+        # ========== TARJETAS "TOP" (2 columnas) ==========
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(24)
+        
+        self.top_equipo_card = self._crear_top_card(
+            "🚜 Equipo Más Rentable",
+            "Cargando...",
+            "RD$ 0.00"
+        )
+        top_layout.addWidget(self.top_equipo_card)
+        
+        self.top_operador_card = self._crear_top_card(
+            "👤 Operador con Más Horas",
+            "Cargando...",
+            "0.0 hrs"
+        )
+        top_layout.addWidget(self.top_operador_card)
+        
+        main_layout.addLayout(top_layout)
+        
+        # ========== TABLA DE ACTIVIDAD RECIENTE ==========
+        tabla_card = self._crear_tabla_actividad()
+        main_layout.addWidget(tabla_card, stretch=1)  # ✅ stretch=1 para expandir
+    
+    def _crear_filtros(self) -> ModernCard:
+        """Crea la tarjeta de filtros (SIN FONDOS VISIBLES)"""
+        card = ModernCard(padding=20)
+        
+        filtros_layout = QHBoxLayout()
+        filtros_layout.setSpacing(16)
+        
+        # Label "Filtros:"
+        label = QLabel("Filtros:")
+        label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_main']};
+                font-size: 14px;
+                font-weight: 600;
+                background-color: transparent;
+            }}
+        """)
+        filtros_layout.addWidget(label)
+        
+        # ✅ ESTILO CORREGIDO PARA COMBOS (sin fondo visible)
+        combo_style = f"""
+            QComboBox {{
+                background-color: transparent;
+                color: {ModernTheme.COLORS['text_main']};
+                border: 1px solid {ModernTheme.COLORS['border']};
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 14px;
+            }}
+            QComboBox:hover {{
+                border-color: {ModernTheme.COLORS['primary']};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 30px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid {ModernTheme.COLORS['text_muted']};
+                margin-right: 8px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {ModernTheme.COLORS['bg_card']};
+                border: 1px solid {ModernTheme.COLORS['border']};
+                selection-background-color: {ModernTheme.COLORS['primary']};
+                selection-color: {ModernTheme.COLORS['primary_text']};
+                padding: 4px;
+            }}
+        """
+        
+        # Combo Año
+        self.combo_ano = QComboBox()
+        self.combo_ano.setMinimumWidth(100)
+        self.combo_ano.setStyleSheet(combo_style)
+        ano_actual = datetime.now().year
+        for ano in range(ano_actual - 2, ano_actual + 2):
+            self.combo_ano.addItem(str(ano), ano)
+        self.combo_ano.setCurrentText(str(self.ano_actual))
+        self.combo_ano.currentIndexChanged.connect(self._on_filtro_changed)
+        filtros_layout.addWidget(self.combo_ano)
+        
+        # Combo Mes
+        self.combo_mes = QComboBox()
+        self.combo_mes.setMinimumWidth(120)
+        self.combo_mes.setStyleSheet(combo_style)
+        meses = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ]
+        for i, mes in enumerate(meses, 1):
+            self.combo_mes.addItem(mes, i)
+        self.combo_mes.setCurrentIndex(self.mes_actual - 1)
+        self.combo_mes.currentIndexChanged.connect(self._on_filtro_changed)
+        filtros_layout.addWidget(self.combo_mes)
+        
+        # Combo Equipo
+        self.combo_equipo = QComboBox()
+        self.combo_equipo.setMinimumWidth(200)
+        self.combo_equipo.setStyleSheet(combo_style)
+        self.combo_equipo.addItem("Todos los Equipos", None)
+        self.combo_equipo.currentIndexChanged.connect(self._on_filtro_changed)
+        filtros_layout.addWidget(self.combo_equipo)
+        
+        filtros_layout.addStretch()
+        
+        card.add_layout(filtros_layout)
+        return card
+    
+    def _crear_top_card(self, titulo: str, nombre: str, valor: str) -> ModernCard:
+        """Crea una tarjeta 'Top' (Equipo o Operador)"""
+        card = ModernCard(padding=24)
+        card.setMinimumHeight(120)
+        
+        layout = QVBoxLayout()
+        layout.setSpacing(12)
+        
+        # ✅ TÍTULO (sin fondo)
+        titulo_label = QLabel(titulo)
+        titulo_label.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_muted']};
+                font-size: 13px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                background-color: transparent;  /* ✅ CRÍTICO */
+            }}
+        """)
+        layout.addWidget(titulo_label)
+        
+        # ✅ NOMBRE (sin fondo)
+        nombre_label = QLabel(nombre)
+        nombre_label.setObjectName("top_nombre")
+        nombre_label.setStyleSheet(f"""
+            QLabel#top_nombre {{
+                color: {ModernTheme.COLORS['text_main']};
+                font-size: 20px;
+                font-weight: 700;
+                background-color: transparent;  /* ✅ CRÍTICO */
+            }}
+        """)
+        layout.addWidget(nombre_label)
+        
+        # ✅ VALOR (sin fondo)
+        valor_label = QLabel(valor)
+        valor_label.setObjectName("top_valor")
+        valor_label.setStyleSheet(f"""
+            QLabel#top_valor {{
+                color: {ModernTheme.COLORS['text_muted']};
+                font-size: 14px;
+                background-color: transparent;  /* ✅ CRÍTICO */
+            }}
+        """)
+        layout.addWidget(valor_label)
+        
+        card.add_layout(layout)
+        
+        # Guardar referencias
+        card.nombre_label = nombre_label
+        card.valor_label = valor_label
+        
+        return card
+    
+    def _crear_tabla_actividad(self) -> ModernCard:
+        """Crea la tarjeta con la tabla de actividad reciente (EXPANDIDA)"""
+        card = ModernCard(padding=0)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  # ✅ Expandir
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Toolbar
+        toolbar = QFrame()
+        toolbar.setStyleSheet(f"""
+            QFrame {{
+                background-color: transparent;
+                border-bottom: 1px solid {ModernTheme.COLORS['border']};
+            }}
+        """)
+        toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(24, 20, 24, 20)
+        
+        titulo = QLabel("Actividad Reciente")
+        titulo.setStyleSheet(f"""
+            QLabel {{
+                color: {ModernTheme.COLORS['text_main']};
+                font-size: 16px;
+                font-weight: 700;
+                background-color: transparent;
+            }}
+        """)
+        toolbar_layout.addWidget(titulo)
+        toolbar_layout.addStretch()
+        
+        btn_ver_todo = ModernButton("Ver Todo", "primary")
+        btn_ver_todo.clicked.connect(self._ver_todo_alquileres)
+        toolbar_layout.addWidget(btn_ver_todo)
+        
+        layout.addWidget(toolbar)
+        
+        # ✅ TABLA EXPANDIDA
+        self.tabla_actividad = QTableWidget(0, 5)
+        self.tabla_actividad.setHorizontalHeaderLabels([
+            "Fecha", "Equipo", "Cliente", "Monto", "Estado"
         ])
         
-        # Configuración de tabla moderna
-        header = self.table.horizontalHeader()
-        header.setStretchLastSection(True)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(False)  # Usamos hover en su lugar
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.table.setWordWrap(False)
-        self.table.setShowGrid(False)  # Sin grillas verticales
-        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        # ✅ CONFIGURACIÓN PARA EXPANDIR
+        self.tabla_actividad.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.tabla_actividad.horizontalHeader().setStretchLastSection(True)
+        self.tabla_actividad.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tabla_actividad.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tabla_actividad.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabla_actividad.verticalHeader().setVisible(False)
+        self.tabla_actividad.setAlternatingRowColors(False)
+        self.tabla_actividad.setShowGrid(False)
+        self.tabla_actividad.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.tabla_actividad.setMinimumHeight(400)  # ✅ Altura mínima
         
-        tabla_layout.addWidget(self.table)
-        tabla_card.add_widget(tabla_container)
+        # ✅ ESTILO SIN BORDES VERTICALES
+        self.tabla_actividad.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {ModernTheme.COLORS['bg_card']};
+                border: none;
+                gridline-color: transparent;
+            }}
+            QTableWidget::item {{
+                padding: 16px 24px;
+                border-bottom: 1px solid {ModernTheme.COLORS['border']};
+                border-left: none;
+                border-right: none;
+                border-top: none;
+            }}
+            QTableWidget::item:selected {{
+                background-color: {ModernTheme.COLORS['hover_bg']};
+                color: {ModernTheme.COLORS['text_main']};
+            }}
+            QHeaderView::section {{
+                background-color: {ModernTheme.COLORS['bg_card']};
+                color: {ModernTheme.COLORS['text_muted']};
+                padding: 12px 24px;
+                border: none;
+                border-bottom: 2px solid {ModernTheme.COLORS['border']};
+                font-weight: 600;
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+        """)
         
-        main_layout.addWidget(tabla_card, stretch=1)
-
-        # Conexiones
-        self.combo_anio.currentIndexChanged.connect(self.refrescar_datos)
-        self.combo_mes.currentIndexChanged.connect(self.refrescar_datos)
-        self.combo_equipo.currentIndexChanged.connect(self.refrescar_datos)
-
-    def _configurar_filtros_inicial(self):
-        """Pobla los filtros de fecha (sin datos de DB)."""
-        self.combo_anio.blockSignals(True)
-        self.combo_mes.blockSignals(True)
-
-        self.combo_anio.clear()
-        anio_actual = datetime.now().year
-        anios = [str(anio_actual - i) for i in range(5)]
-        self.combo_anio.addItems(anios)
-        self.combo_anio.setCurrentText(str(anio_actual))
-
-        nombre_mes_actual = list(self.meses_mapa.keys())[datetime.now().month - 1]
-        self.combo_mes.setCurrentText(nombre_mes_actual)
-
-        self.combo_anio.blockSignals(False)
-        self.combo_mes.blockSignals(False)
-
-    # ---------------- Mapas ----------------
-
-    def actualizar_mapas(self, mapas: dict):
-        logger.info("Dashboard: Mapas recibidos. Poblando filtros...")
-        logger.debug(f"Mapas equipos size={len(mapas.get('equipos', {}) or {})}, operadores size={len(mapas.get('operadores', {}) or {})}")
-        self.equipos_mapa_id_nombre = mapas.get("equipos", {}) or {}
-        self.operadores_mapa_id_nombre = mapas.get("operadores", {}) or {}
-
-        self.equipos_mapa_nombre_id = {nombre: id for id, nombre in self.equipos_mapa_id_nombre.items()}
-
-        self.combo_equipo.blockSignals(True)
-        self.combo_equipo.clear()
-        self.combo_equipo.addItem("Todos", None)
-        for nombre in sorted(self.equipos_mapa_nombre_id.keys()):
-            self.combo_equipo.addItem(nombre, self.equipos_mapa_nombre_id[nombre])
-        self.combo_equipo.blockSignals(False)
-        self.clientes_mapa_id_nombre = mapas.get("clientes", {}) or {}
-
+        layout.addWidget(self.tabla_actividad, stretch=1)  # ✅ stretch=1
+        
+        card.add_layout(layout)
+        return card
+    
+    def _on_filtro_changed(self):
+        """Callback cuando cambian los filtros"""
+        self.ano_actual = self.combo_ano.currentData()
+        self.mes_actual = self.combo_mes.currentData()
+        self.equipo_filtro = self.combo_equipo.currentData()
+        self.refrescar_datos()
+    
     def refrescar_datos(self):
-        if not all([self.combo_anio.currentText(), self.combo_mes.currentText()]):
-            logger.warning("Dashboard: filtros incompletos.")
-            return
-        if not self.equipos_mapa_id_nombre or not self.operadores_mapa_id_nombre:
-            logger.warning("Dashboard: Mapas aún no cargados, saltando refresco.")
-            return
-
-        anio = int(self.combo_anio.currentText())
-        mes = self.meses_mapa[self.combo_mes.currentText()]
-        equipo_id = self.combo_equipo.currentData()  # None = todos
-        filtros = {'ano': anio, 'mes': mes, 'equipo_id': equipo_id}
-
-        print(f"[Dashboard] Refrescando datos con filtros: {filtros}")
-
-        try:
-            kpis = self.fm.obtener_estadisticas_dashboard(filtros) or {}
-            print(f"[Dashboard] KPIs recibidos: {kpis}")
-            self._actualizar_kpis(kpis)
-        except Exception as e:
-            logger.error(f"Error refrescando KPIs: {e}", exc_info=True)
-            print(f"[Dashboard] Error KPIs: {e}")
-
-        try:
-            recientes = self.fm.obtener_alquileres_recientes({**filtros, "limit": 20}) or []
-            print(f"[Dashboard] Alquileres recientes recibidos: {len(recientes)} items")
-            self._actualizar_tabla(recientes)
-        except Exception as e:
-            logger.error(f"Error cargando alquileres recientes: {e}", exc_info=True)
-            print(f"[Dashboard] Error recientes: {e}")
-
-    def _actualizar_kpis(self, kpis: dict):
-        print(f"[Dashboard] _actualizar_kpis con: {kpis}")
-        moneda = "RD$"
-        ingresos = float(kpis.get('ingresos_totales', kpis.get('ingresos_mes', 0.0)) or 0.0)
-        gastos = float(kpis.get('gastos_totales', kpis.get('gastos_mes', 0.0)) or 0.0)
-        pendiente = float(kpis.get('pendiente_cobro', kpis.get('saldo_pendiente', 0.0)) or 0.0)
-        utilidad = float(kpis.get('utilidad_neta', ingresos - gastos) or (ingresos - gastos))
-        ocupacion = float(kpis.get('ocupacion_pct', 0.0) or 0.0)
-
-        self.card_ingresos.update_value(f"{moneda} {ingresos:,.2f}")
-        self.card_pendiente.update_value(f"{moneda} {pendiente:,.2f}")
-        self.card_utilidad.update_value(f"{moneda} {utilidad:,.2f}")
-        self.card_ocupacion.update_value(f"{ocupacion:,.2f}%")
-
-        ingresos_data = kpis.get('ingresos_data', []) or []
-        print(f"[Dashboard] ingresos_data len={len(ingresos_data)}")
-
+        """Recarga y actualiza todos los datos del dashboard"""
+        # Calcular fechas del período
+        fecha_inicio = f"{self.ano_actual}-{self.mes_actual:02d}-01"
+        
+        if self.mes_actual == 12:
+            ultimo_dia = 31
+        else:
+            ultimo_dia = (datetime(self.ano_actual, self.mes_actual + 1, 1) - timedelta(days=1)).day
+        
+        fecha_fin = f"{self.ano_actual}-{self.mes_actual:02d}-{ultimo_dia:02d}"
+        
+        # Obtener alquileres
+        filtros = {
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin
+        }
+        
+        if self.equipo_filtro:
+            filtros["equipo_id"] = self.equipo_filtro
+        
+        alquileres = self.fm.obtener_alquileres(filtros) or []
+        
+        # Calcular KPIs
+        self._calcular_kpis(alquileres)
+        
+        # Actualizar UI
+        self._actualizar_kpis()
+        self._actualizar_tops(alquileres)
+        self._actualizar_tabla_actividad(alquileres)
+        self._actualizar_combo_equipos()
+    
+    def _calcular_kpis(self, alquileres: List[Dict[str, Any]]):
+        """Calcula los KPIs a partir de los alquileres"""
+        total_ingresos = 0.0
+        total_pendiente = 0.0
+        
+        for alq in alquileres:
+            monto = float(alq.get('monto', 0) or 0)
+            total_ingresos += monto
+            
+            if not alq.get('pagado', False):
+                total_pendiente += monto
+        
+        # Obtener gastos
+        filtros_gastos = {
+            "fecha_inicio": f"{self.ano_actual}-{self.mes_actual:02d}-01",
+            "fecha_fin": f"{self.ano_actual}-{self.mes_actual:02d}-31"
+        }
+        gastos = self.fm.obtener_gastos(filtros_gastos) or []
+        total_gastos = sum(float(g.get('monto', 0) or 0) for g in gastos)
+        
+        utilidad_neta = total_ingresos - total_gastos
+        margen = (utilidad_neta / total_ingresos * 100) if total_ingresos > 0 else 0
+        
+        # Ocupación
+        equipos_activos = len(set(alq.get('equipo_id') for alq in alquileres if alq.get('equipo_id')))
+        total_equipos = len(self.fm.obtener_equipos(activo=True) or [])
+        ocupacion = (equipos_activos / total_equipos * 100) if total_equipos > 0 else 0
+        
+        self.kpi_data = {
+            'ingresos': total_ingresos,
+            'pendiente': total_pendiente,
+            'utilidad': utilidad_neta,
+            'margen': margen,
+            'ocupacion': ocupacion,
+            'equipos_activos': equipos_activos,
+            'total_equipos': total_equipos
+        }
+    
+    def _actualizar_kpis(self):
+        """Actualiza las tarjetas KPI"""
+        moneda = self.config.get('app', {}).get('moneda', 'RD$')
+        
+        # Ingresos
+        ingresos = self.kpi_data.get('ingresos', 0)
+        self.kpi_ingresos.set_value(f"{moneda} {ingresos:,.2f}")
+        self.kpi_ingresos.set_footer("Cargando...")
+        
+        # Pendiente
+        pendiente = self.kpi_data.get('pendiente', 0)
+        facturas_pendientes = sum(1 for alq in self.actividad_reciente if not alq.get('pagado', False))
+        self.kpi_pendiente.set_value(f"{moneda} {pendiente:,.2f}")
+        self.kpi_pendiente.set_footer(f"{facturas_pendientes} facturas abiertas")
+        
+        # Utilidad
+        utilidad = self.kpi_data.get('utilidad', 0)
+        margen = self.kpi_data.get('margen', 0)
+        self.kpi_utilidad.set_value(f"{moneda} {utilidad:,.2f}")
+        self.kpi_utilidad.set_footer(f"Margen global: {margen:.0f}%")
+        
+        # Ocupación
+        ocupacion = self.kpi_data.get('ocupacion', 0)
+        equipos_activos = self.kpi_data.get('equipos_activos', 0)
+        total_equipos = self.kpi_data.get('total_equipos', 0)
+        self.kpi_ocupacion.set_value(f"{ocupacion:.0f}%")
+        self.kpi_ocupacion.set_footer(f"{equipos_activos} de {total_equipos} equipos activos")
+    
+    def _actualizar_tops(self, alquileres: List[Dict[str, Any]]):
+        """Actualiza las tarjetas Top"""
+        moneda = self.config.get('app', {}).get('moneda', 'RD$')
+        
         # Top Equipo
         equipos_ingresos = {}
-        for ingreso in ingresos_data:
-            eq_id = str(ingreso.get('equipo_id') or "")
-            monto = float(
-                ingreso.get('monto', 0)
-                or ingreso.get('monto_facturado', 0)
-                or ingreso.get('total', 0)
-                or 0
-            )
-            if eq_id:
-                equipos_ingresos[eq_id] = equipos_ingresos.get(eq_id, 0.0) + monto
-
-        top_equipo_id = max(equipos_ingresos, key=equipos_ingresos.get) if equipos_ingresos else None
-        top_equipo_nombre = "N/A"
-        top_equipo_monto = 0.0
-        if top_equipo_id:
-            top_equipo_nombre = self.equipos_mapa_id_nombre.get(top_equipo_id, f"ID: {top_equipo_id}")
+        for alq in alquileres:
+            equipo_id = alq.get('equipo_id')
+            if equipo_id:
+                monto = float(alq.get('monto', 0) or 0)
+                equipos_ingresos[equipo_id] = equipos_ingresos.get(equipo_id, 0) + monto
+        
+        if equipos_ingresos:
+            top_equipo_id = max(equipos_ingresos, key=equipos_ingresos.get)
+            top_equipo_nombre = self.equipos_mapa.get(str(top_equipo_id), f"ID:{top_equipo_id}")
             top_equipo_monto = equipos_ingresos[top_equipo_id]
-        self.card_top_equipo.update_value(f"{top_equipo_nombre}\n({moneda} {top_equipo_monto:,.2f})")
-
+            
+            self.top_equipo_card.nombre_label.setText(top_equipo_nombre)
+            self.top_equipo_card.valor_label.setText(f"{moneda} {top_equipo_monto:,.2f}")
+        else:
+            self.top_equipo_card.nombre_label.setText("Sin datos")
+            self.top_equipo_card.valor_label.setText(f"{moneda} 0.00")
+        
         # Top Operador
         operadores_horas = {}
-        for ingreso in ingresos_data:
-            op_id = str(ingreso.get('operador_id') or "")
-            horas = float(ingreso.get('horas', 0) or ingreso.get('horas_operadas', 0) or 0)
-            if op_id and horas:
-                operadores_horas[op_id] = operadores_horas.get(op_id, 0.0) + horas
-
-        top_operador_id = max(operadores_horas, key=operadores_horas.get) if operadores_horas else None
-        top_operador_nombre = "N/A"
-        top_operador_horas = 0.0
-        if top_operador_id:
-            top_operador_nombre = self.operadores_mapa_id_nombre.get(top_operador_id, f"ID: {top_operador_id}")
+        for alq in alquileres:
+            operador_id = alq.get('operador_id')
+            if operador_id:
+                horas = float(alq.get('horas', 0) or 0)
+                operadores_horas[operador_id] = operadores_horas.get(operador_id, 0) + horas
+        
+        if operadores_horas:
+            top_operador_id = max(operadores_horas, key=operadores_horas.get)
+            top_operador_nombre = self.operadores_mapa.get(str(top_operador_id), f"ID:{top_operador_id}")
             top_operador_horas = operadores_horas[top_operador_id]
-        self.card_top_operador.update_value(f"{top_operador_nombre}\n({top_operador_horas:.2f} Horas)")
-
-    def _actualizar_tabla(self, rows: list[dict]):
-        print(f"[Dashboard] _actualizar_tabla con {len(rows)} filas")
-        self.table.setRowCount(0)
-        for r, d in enumerate(rows):
-            self.table.insertRow(r)
-            self.table.setItem(r, 0, QTableWidgetItem(str(d.get("id", ""))))
-
-            equipo_nombre = d.get("equipo_nombre") or self.equipos_mapa_id_nombre.get(str(d.get("equipo_id", "")), "")
-            placa = d.get("placa") or ""
-            equipo_txt = equipo_nombre if not placa else f"{equipo_nombre} ({placa})"
-            self.table.setItem(r, 1, QTableWidgetItem(equipo_txt))
-
-            cliente_nombre = d.get("cliente_nombre") or self.clientes_mapa_id_nombre.get(str(d.get("cliente_id", "")), "")
-            self.table.setItem(r, 2, QTableWidgetItem(cliente_nombre))
-
-            self.table.setItem(r, 3, QTableWidgetItem(str(d.get("fecha", ""))))
-
-            monto_txt = f"RD$ {float(d.get('monto', 0) or 0):,.2f}"
-            self.table.setItem(r, 4, QTableWidgetItem(monto_txt))
-            self.table.item(r, 4).setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-            # Estado con StatusBadge moderno
-            estado = str(d.get("estado", "")).lower()
+            
+            self.top_operador_card.nombre_label.setText(top_operador_nombre)
+            self.top_operador_card.valor_label.setText(f"{top_operador_horas:.1f} Horas")
+        else:
+            self.top_operador_card.nombre_label.setText("Sin datos")
+            self.top_operador_card.valor_label.setText("0.0 Horas")
+    
+    def _actualizar_tabla_actividad(self, alquileres: List[Dict[str, Any]]):
+        """Actualiza la tabla de actividad reciente"""
+        self.tabla_actividad.setRowCount(0)
+        
+        alquileres_recientes = sorted(
+            alquileres,
+            key=lambda x: x.get('fecha', ''),
+            reverse=True
+        )[:10]
+        
+        self.actividad_reciente = alquileres_recientes
+        moneda = self.config.get('app', {}).get('moneda', 'RD$')
+        
+        for alq in alquileres_recientes:
+            row = self.tabla_actividad.rowCount()
+            self.tabla_actividad.insertRow(row)
+            
+            # Fecha
+            fecha = alq.get('fecha', '')
+            self.tabla_actividad.setItem(row, 0, QTableWidgetItem(fecha))
+            
+            # Equipo
+            equipo_nombre = self.equipos_mapa.get(str(alq.get('equipo_id', '')), "Sin equipo")
+            self.tabla_actividad.setItem(row, 1, QTableWidgetItem(equipo_nombre))
+            
+            # Cliente
+            cliente_nombre = self.clientes_mapa.get(str(alq.get('cliente_id', '')), "Sin cliente")
+            self.tabla_actividad.setItem(row, 2, QTableWidgetItem(cliente_nombre))
+            
+            # Monto
+            monto = float(alq.get('monto', 0) or 0)
+            monto_item = QTableWidgetItem(f"{moneda} {monto:,.2f}")
+            monto_item.setFont(QFont("monospace", 10))
+            self.tabla_actividad.setItem(row, 3, monto_item)
+            
+            # Estado
             badge = StatusBadge()
-            
-            if estado == "pagado":
+            if alq.get('pagado', False):
                 badge.setPaid()
-            elif estado == "pendiente":
-                badge.setPending()
-            elif estado == "vencido":
-                badge.setOverdue()
             else:
-                badge.setStatus(estado.capitalize() if estado else "N/A", "default")
+                try:
+                    fecha_alq = datetime.strptime(fecha, '%Y-%m-%d')
+                    dias_desde = (datetime.now() - fecha_alq).days
+                    if dias_desde > 30:
+                        badge.setOverdue()
+                    else:
+                        badge.setPending()
+                except:
+                    badge.setPending()
             
-            # Centrar el badge en la celda
-            badge_container = QWidget()
-            badge_layout = QHBoxLayout(badge_container)
-            badge_layout.setContentsMargins(8, 4, 8, 4)
-            badge_layout.addWidget(badge)
-            badge_layout.addStretch()
-            
-            self.table.setCellWidget(r, 5, badge_container)
-
-            self.table.setItem(r, 6, QTableWidgetItem("⋯"))
-
-        self.table.resizeColumnsToContents()
-        for r in range(self.table.rowCount()):
-            item = self.table.item(r, 4)
-            if item:
-                item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            self.tabla_actividad.setCellWidget(row, 4, badge)
+    
+    def _actualizar_combo_equipos(self):
+        """Actualiza el combo de equipos"""
+        current_equipo = self.combo_equipo.currentData()
+        
+        self.combo_equipo.blockSignals(True)
+        self.combo_equipo.clear()
+        self.combo_equipo.addItem("Todos los Equipos", None)
+        
+        equipos = self.fm.obtener_equipos(activo=True) or []
+        for eq in equipos:
+            equipo_id = str(eq.get('id'))
+            equipo_nombre = eq.get('nombre', f"ID:{equipo_id}")
+            self.combo_equipo.addItem(equipo_nombre, equipo_id)
+        
+        if current_equipo:
+            index = self.combo_equipo.findData(current_equipo)
+            if index >= 0:
+                self.combo_equipo.setCurrentIndex(index)
+        
+        self.combo_equipo.blockSignals(False)
+    
+    def actualizar_mapas(self, mapas: Dict[str, Dict[str, str]]):
+        """Actualiza los mapas de nombres desde app_gui"""
+        self.equipos_mapa = mapas.get('equipos', {})
+        self.clientes_mapa = mapas.get('clientes', {})
+        self.operadores_mapa = mapas.get('operadores', {})
+    
+    def _ver_todo_alquileres(self):
+        """Callback para el botón 'Ver Todo'"""
+        from PyQt6.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self,
+            "Ver Alquileres",
+            "Esta función cambiará a la vista de Alquileres.\n"
+            "Por ahora, usa el menú lateral para navegar."
+        )

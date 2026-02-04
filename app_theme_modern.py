@@ -32,20 +32,35 @@ class ModernTheme:
         'text_main': '#111827',     # Negro casi puro
         'text_muted': '#6B7280',    # Gris medio
         'text_sidebar': '#F9FAFB',  # Blanco para sidebar
-        'text_sidebar_muted': '#D1D5DB',  # Gris claro para sidebar
+        'text_sidebar_muted': '#9CA3AF',      # Gris para subtítulos en sidebar
+        'text_sidebar_inactive': '#D1D5DB',   # ← LÍNEA AGREGADA - Botones sidebar inactivos
         
         # Estados
         'success_bg': '#DCFCE7',
         'success_text': '#166534',
+        'success_dark': '#10B981',    # ← AGREGADO para consistencia
         'warning_bg': '#FEF3C7',
         'warning_text': '#92400E',
         'danger_bg': '#FEE2E2',
         'danger_text': '#991B1B',
+        'danger_dark': '#EF4444',     # ← AGREGADO para consistencia
         
         # Fondos adicionales
         'bg_input': '#FFFFFF',
         'bg_hover': '#F9FAFB',
         'bg_sidebar_hover': 'rgba(255, 255, 255, 0.05)',
+        
+        # Estados adicionales (usados en componentes)
+        'info_bg': '#EFF6FF',
+        'info_text': '#1E40AF',
+        'info_dark': '#3B82F6',
+        'purple_bg': '#EEF2FF',
+        'purple_text': '#4338CA',
+        'purple_dark': '#6366F1',
+        'warning_dark': '#F59E0B',
+        'input_bg': '#F3F4F6',      # Para inputs con fondo gris
+        'hover_bg': '#F9FAFB',       # Alias consistente
+        'active_bg': '#F59E0B',      # Fondo activo
     }
     
     @staticmethod
