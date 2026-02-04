@@ -1030,7 +1030,7 @@ class AppGUIModern(QMainWindow):
         mensaje = """
         <h2>EQUIPOS 6.0 MODERN</h2>
         <p><b>Sistema de Gestión de Alquiler de Equipos Pesados</b></p>
-        <p>Versión: 4.0.0</p>
+        <p>Versión: 6.0 MODERN</p>
         <p>Desarrollado por: ZOEC Civil</p>
         <p>Tecnologías:</p>
         <ul>

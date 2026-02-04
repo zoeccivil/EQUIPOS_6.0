@@ -441,24 +441,59 @@ class WhatsAppIntegration(QWidget):
         """
         Envía un mensaje de WhatsApp usando el provider configurado
         
-        NOTA: Esta es una implementación simulada.
-        En producción, integrar con Twilio o WhatsApp Business API.
+        ⚠️ IMPORTANTE: Esta es una implementación SIMULADA para desarrollo.
+        
+        En producción, debe implementarse la integración real con:
+        - Twilio WhatsApp API: https://www.twilio.com/docs/whatsapp
+        - WhatsApp Business API: https://developers.facebook.com/docs/whatsapp
+        
+        Args:
+            numero: Número de teléfono con código de país (ej: +593999999999)
+            mensaje: Texto del mensaje a enviar
+            
+        Returns:
+            dict: {"success": bool, "message_id": str} o {"success": False, "error": str}
         """
         try:
             # Validar número (debe incluir código de país)
             if not numero.startswith("+"):
                 return {"success": False, "error": "El número debe incluir el código de país (ej: +593)"}
             
-            # TODO: Implementar integración real
-            # Si provider == "twilio":
+            # ============================================================
+            # TODO: IMPLEMENTAR INTEGRACIÓN REAL CON API DE WHATSAPP
+            # ============================================================
+            # 
+            # Ejemplo con Twilio:
+            # if self.provider == "twilio":
             #     from twilio.rest import Client
-            #     client = Client(account_sid, auth_token)
+            #     client = Client(
+            #         self.whatsapp_config.get("twilio_account_sid"),
+            #         self.whatsapp_config.get("twilio_auth_token")
+            #     )
             #     message = client.messages.create(
-            #         from_='whatsapp:' + twilio_from,
+            #         from_='whatsapp:' + self.whatsapp_config.get("twilio_from"),
             #         body=mensaje,
             #         to='whatsapp:' + numero
             #     )
             #     return {"success": True, "message_id": message.sid}
+            # 
+            # Ejemplo con WhatsApp Business API:
+            # elif self.provider == "whatsapp_business":
+            #     import requests
+            #     url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
+            #     headers = {
+            #         "Authorization": f"Bearer {api_token}",
+            #         "Content-Type": "application/json"
+            #     }
+            #     data = {
+            #         "messaging_product": "whatsapp",
+            #         "to": numero,
+            #         "type": "text",
+            #         "text": {"body": mensaje}
+            #     }
+            #     response = requests.post(url, json=data, headers=headers)
+            #     return {"success": True, "message_id": response.json()["messages"][0]["id"]}
+            # ============================================================
             
             # Por ahora, simular envío exitoso
             logger.info(f"[SIMULADO] Enviando WhatsApp a {numero}: {mensaje[:50]}...")
