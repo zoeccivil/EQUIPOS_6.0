@@ -2242,3 +2242,189 @@ class FirebaseManager:
                 "estado": estado,
             })
         return recientes
+    
+    # ========== MÉTODOS PARA VERSIÓN MODERN ==========
+    # Agregados para soportar: Dashboard Ejecutivo, Combustible, 
+    # Cuentas por Cobrar y WhatsApp Business
+
+    def obtener_cargas_combustible(self, fecha_inicio=None, fecha_fin=None, equipo_id=None):
+        """
+        Obtiene las cargas de combustible desde Firebase
+        
+        Args:
+            fecha_inicio: Fecha inicial (YYYY-MM-DD)
+            fecha_fin: Fecha final (YYYY-MM-DD)
+            equipo_id: ID del equipo (opcional)
+        
+        Returns:
+            list: Lista de cargas de combustible
+        """
+        try:
+            query = self.db.collection('cargas_combustible')
+            
+            if fecha_inicio:
+                query = query.where('fecha', '>=', fecha_inicio)
+            if fecha_fin:
+                query = query.where('fecha', '<=', fecha_fin)
+            if equipo_id:
+                query = query.where('equipo_id', '==', str(equipo_id))
+            
+            docs = query.order_by('fecha', direction=firestore.Query.DESCENDING).stream()
+            
+            cargas = []
+            for doc in docs:
+                carga = doc.to_dict()
+                carga['id'] = doc.id
+                cargas.append(carga)
+            
+            logger.info(f"Obtenidas {len(cargas)} cargas de combustible")
+            return cargas
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo cargas de combustible: {e}", exc_info=True)
+            return []
+
+    def agregar_carga_combustible(self, datos):
+        """
+        Agrega una nueva carga de combustible
+        
+        Args:
+            datos: Diccionario con:
+                - fecha: str (YYYY-MM-DD)
+                - equipo_id: str
+                - litros: float
+                - precio_litro: float
+                - costo_total: float
+                - horometro_anterior: float (opcional)
+                - horometro_actual: float (opcional)
+                - observaciones: str (opcional)
+        
+        Returns:
+            str: ID de la carga creada o None
+        """
+        try:
+            campos_requeridos = ['fecha', 'equipo_id', 'litros', 'precio_litro', 'costo_total']
+            for campo in campos_requeridos:
+                if campo not in datos:
+                    logger.error(f"Campo requerido faltante: {campo}")
+                    return None
+            
+            datos['fecha_creacion'] = firestore.SERVER_TIMESTAMP
+            datos['fecha_actualizacion'] = firestore.SERVER_TIMESTAMP
+            
+            doc_ref = self.db.collection('cargas_combustible').document()
+            doc_ref.set(datos)
+            
+            logger.info(f"Carga de combustible creada: {doc_ref.id}")
+            return doc_ref.id
+            
+        except Exception as e:
+            logger.error(f"Error agregando carga de combustible: {e}", exc_info=True)
+            return None
+
+    def editar_carga_combustible(self, carga_id, datos):
+        """Edita una carga de combustible existente"""
+        try:
+            datos['fecha_actualizacion'] = firestore.SERVER_TIMESTAMP
+            self.db.collection('cargas_combustible').document(str(carga_id)).update(datos)
+            logger.info(f"Carga de combustible actualizada: {carga_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error editando carga de combustible: {e}", exc_info=True)
+            return False
+
+    def eliminar_carga_combustible(self, carga_id):
+        """Elimina una carga de combustible"""
+        try:
+            self.db.collection('cargas_combustible').document(str(carga_id)).delete()
+            logger.info(f"Carga de combustible eliminada: {carga_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error eliminando carga de combustible: {e}", exc_info=True)
+            return False
+
+    def registrar_mensaje_whatsapp(self, datos):
+        """
+        Registra un mensaje de WhatsApp enviado
+        
+        Args:
+            datos: Diccionario con:
+                - fecha_hora: str
+                - destinatario: str
+                - numero: str
+                - mensaje: str
+                - estado: str ('enviado' o 'error')
+                - mensaje_id: str
+                - error: str (opcional)
+        
+        Returns:
+            str: ID del registro o None
+        """
+        try:
+            datos['fecha_creacion'] = firestore.SERVER_TIMESTAMP
+            doc_ref = self.db.collection('mensajes_whatsapp').document()
+            doc_ref.set(datos)
+            logger.info(f"Mensaje WhatsApp registrado: {doc_ref.id}")
+            return doc_ref.id
+        except Exception as e:
+            logger.error(f"Error registrando mensaje WhatsApp: {e}", exc_info=True)
+            return None
+
+    def obtener_mensajes_whatsapp(self, fecha_inicio=None, fecha_fin=None):
+        """Obtiene el historial de mensajes de WhatsApp"""
+        try:
+            query = self.db.collection('mensajes_whatsapp')
+            
+            if fecha_inicio:
+                query = query.where('fecha_hora', '>=', fecha_inicio)
+            if fecha_fin:
+                query = query.where('fecha_hora', '<=', fecha_fin)
+            
+            docs = query.order_by('fecha_hora', direction=firestore.Query.DESCENDING).stream()
+            
+            mensajes = []
+            for doc in docs:
+                mensaje = doc.to_dict()
+                mensaje['id'] = doc.id
+                mensajes.append(mensaje)
+            
+            logger.info(f"Obtenidos {len(mensajes)} mensajes WhatsApp")
+            return mensajes
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo mensajes WhatsApp: {e}", exc_info=True)
+            return []
+
+    def obtener_gastos_por_equipo(self, fecha_inicio=None, fecha_fin=None, equipo_id=None):
+        """
+        Obtiene gastos agrupados por equipo
+        Usado por Dashboard Ejecutivo para cálculo de rendimientos
+        
+        Returns:
+            dict: {equipo_id: total_gastos}
+        """
+        try:
+            filtros = {}
+            if fecha_inicio:
+                filtros['fecha_inicio'] = fecha_inicio
+            if fecha_fin:
+                filtros['fecha_fin'] = fecha_fin
+            
+            gastos = self.obtener_gastos(filtros)
+            gastos_por_equipo = {}
+            
+            for gasto in gastos:
+                eid = str(gasto.get('equipo_id', ''))
+                if not eid or eid == 'None':
+                    continue
+                if equipo_id and eid != str(equipo_id):
+                    continue
+                
+                monto = float(gasto.get('monto', 0))
+                gastos_por_equipo[eid] = gastos_por_equipo.get(eid, 0.0) + monto
+            
+            return gastos_por_equipo
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo gastos por equipo: {e}", exc_info=True)
+            return {}
