@@ -455,3 +455,153 @@ class StorageManager:
         except Exception as e: 
             logger.error(f"Error subiendo archivo público: {e}", exc_info=True)
             return False, None, None, str(e)
+        
+def guardar_pago_operador(self, 
+                          file_path: str,
+                          pago_data: dict,
+                          procesar_imagen: bool = True) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
+    """
+    Sube un comprobante de pago a operador a Storage.
+    SIEMPRE usa URLs firmadas (compatible con UBLA).
+    
+    Args:
+        file_path: Ruta local al archivo
+        pago_data: Dict con 'id' y 'fecha' del pago
+        procesar_imagen: Si True, optimiza imágenes
+    
+    Returns:
+        (éxito, url_firmada, storage_path, error)
+    """
+    try:
+        logger.info(f"=== Subiendo comprobante de pago a operador ===")
+        logger.info(f"Archivo: {file_path}")
+        
+        if not os.path.exists(file_path):
+            return False, None, None, f"Archivo no encontrado: {file_path}"
+        
+        # Construir storage_path
+        fecha_str = pago_data.get('fecha', '')
+        try:
+            fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+            anio, mes = str(fecha_dt.year), f"{fecha_dt.month:02d}"
+        except:
+            now = datetime.now()
+            anio, mes = str(now.year), f"{now.month:02d}"
+        
+        pago_id = pago_data.get('id', 'temp')
+        ext = Path(file_path).suffix.lower()
+        
+        # Procesar imagen si aplica
+        archivo_a_subir = file_path
+        archivo_temporal = None
+        if procesar_imagen and ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']:
+            procesado = self._process_image(file_path)
+            if procesado:
+                archivo_a_subir = procesado
+                archivo_temporal = procesado
+                ext = '.jpeg'
+        
+        storage_path = f"pagos_operadores/{anio}/{mes}/pago_{pago_id}{ext}"
+        logger.info(f"Storage path: {storage_path}")
+        
+        # Subir archivo
+        blob = self.bucket.blob(storage_path)
+        blob.upload_from_filename(archivo_a_subir)
+        logger.info("✓ Archivo subido a Storage")
+        
+        # ✅ Generar URL firmada (NO intentar hacer público)
+        url_firmada = self.generate_signed_url(storage_path, expiration_days=7)
+        
+        if not url_firmada:
+            return False, None, None, "No se pudo generar URL firmada"
+        
+        logger.info(f"✓ URL firmada generada (válida 7 días)")
+        
+        # Limpiar temporal
+        if archivo_temporal and os.path.exists(archivo_temporal):
+            try:
+                os.unlink(archivo_temporal)
+            except:
+                pass
+        
+        logger.info(f"✓ Comprobante de pago guardado exitosamente")
+        return True, url_firmada, storage_path, None
+        
+    except Exception as e:
+        logger.error(f"Error guardando comprobante de pago: {e}", exc_info=True)
+        return False, None, None, str(e)
+    
+    def guardar_pago_operador(self, 
+                            file_path: str,
+                            pago_data: dict,
+                            procesar_imagen: bool = True) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
+        """
+        Sube un comprobante de pago a operador a Storage.
+        SIEMPRE usa URLs firmadas (compatible con UBLA).
+        
+        Args:
+            file_path: Ruta local al archivo
+            pago_data: Dict con 'id' y 'fecha' del pago
+            procesar_imagen: Si True, optimiza imágenes
+        
+        Returns:
+            (éxito, url_firmada, storage_path, error)
+        """
+        try:
+            logger.info(f"=== Subiendo comprobante de pago a operador ===")
+            logger.info(f"Archivo: {file_path}")
+            
+            if not os.path.exists(file_path):
+                return False, None, None, f"Archivo no encontrado: {file_path}"
+            
+            # Construir storage_path
+            fecha_str = pago_data.get('fecha', '')
+            try:
+                fecha_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+                anio, mes = str(fecha_dt.year), f"{fecha_dt.month:02d}"
+            except:
+                now = datetime.now()
+                anio, mes = str(now.year), f"{now.month:02d}"
+            
+            pago_id = pago_data.get('id', 'temp')
+            ext = Path(file_path).suffix.lower()
+            
+            # Procesar imagen si aplica
+            archivo_a_subir = file_path
+            archivo_temporal = None
+            if procesar_imagen and ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']:
+                procesado = self._process_image(file_path)
+                if procesado:
+                    archivo_a_subir = procesado
+                    archivo_temporal = procesado
+                    ext = '.jpeg'
+            
+            storage_path = f"pagos_operadores/{anio}/{mes}/pago_{pago_id}{ext}"
+            logger.info(f"Storage path: {storage_path}")
+            
+            # Subir archivo
+            blob = self.bucket.blob(storage_path)
+            blob.upload_from_filename(archivo_a_subir)
+            logger.info("✓ Archivo subido a Storage")
+            
+            # ✅ Generar URL firmada (NO intentar hacer público)
+            url_firmada = self.generate_signed_url(storage_path, expiration_days=7)
+            
+            if not url_firmada:
+                return False, None, None, "No se pudo generar URL firmada"
+            
+            logger.info(f"✓ URL firmada generada (válida 7 días)")
+            
+            # Limpiar temporal
+            if archivo_temporal and os.path.exists(archivo_temporal):
+                try:
+                    os.unlink(archivo_temporal)
+                except:
+                    pass
+            
+            logger.info(f"✓ Comprobante de pago guardado exitosamente")
+            return True, url_firmada, storage_path, None
+            
+        except Exception as e:
+            logger.error(f"Error guardando comprobante de pago: {e}", exc_info=True)
+            return False, None, None, str(e)

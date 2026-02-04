@@ -1,14 +1,9 @@
 """
-Punto de entrada principal para EQUIPOS 4.0
-Adaptado para trabajar con Firebase en lugar de SQLite
+Punto de entrada para EQUIPOS 6.0 MODERN
+Incluye 4 módulos adicionales: Dashboard Ejecutivo, Combustible, 
+Cuentas por Cobrar y WhatsApp Business
 
-Comportamiento específico:
-- Busca credenciales de Firebase en:
-    1) config["firebase"]["credentials_path"] si existe y el archivo está presente
-    2) Carpeta raíz (firebase_equipos_key.json o firebase_equipos_key)
-    3) Diálogo de archivo para que el usuario seleccione el JSON; se guarda en config_equipos.json
-- Inicializa firebase_admin tempranamente (si hay credenciales) antes de crear StorageManager.
-- Usa resource_path(...) para soportar PyInstaller.
+Basado en main_qt.py pero utiliza AppGUIModern
 """
 
 import sys
@@ -18,17 +13,13 @@ import traceback
 import json
 from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
 from PyQt6.QtCore import QTimer
-from dashboard_ejecutivo import DashboardEjecutivo
-from gestor_combustible import GestorCombustible
-from cuentas_por_cobrar import CuentasPorCobrar
-from whatsapp_integration import WhatsAppIntegration
 
 # Importaciones internas
 from firebase_manager import FirebaseManager
 from backup_manager import BackupManager
 from storage_manager import StorageManager
 from config_manager import cargar_configuracion, guardar_configuracion
-from app_gui_qt import AppGUI
+from app_gui_modern import AppGUIModern  # ← Importar la versión MODERN
 from theme_manager import ThemeManager
 
 # Intentar importar helpers de firebase_admin (si están instalados)
@@ -42,7 +33,7 @@ except Exception:
     fb_apps = None
 
 # Configurar logging global
-LOG_FILE = "equipos.log"
+LOG_FILE = "equipos_modern.log"
 logging.basicConfig(
     filename=LOG_FILE,
     level=logging.DEBUG,
@@ -168,9 +159,15 @@ def ensure_credentials(app, config: dict) -> str:
 
 
 def main():
-    """Función principal de la aplicación"""
+    """Función principal - Versión MODERN"""
+    logger.info("=" * 60)
+    logger.info("Iniciando EQUIPOS 6.0 MODERN")
+    logger.info("=" * 60)
+    
     sys.excepthook = excepthook
     app = QApplication(sys.argv)
+    app.setApplicationName("EQUIPOS 6.0 MODERN")
+    app.setOrganizationName("ZOEC CIVIL")
 
     # Cargar configuración
     try:
@@ -263,18 +260,19 @@ def main():
         logger.warning(f"No se pudo inicializar Backup Manager: {e}")
         backup_manager = None
 
-    # Ventana principal
+    # Ventana principal MODERN
     try:
-        window = AppGUI(
+        window = AppGUIModern(  # ← Usar clase MODERN
             firebase_manager=firebase_manager,
             storage_manager=storage_manager,
             backup_manager=backup_manager,
             config=config,
         )
         window.show()
+        logger.info("✅ EQUIPOS 6.0 MODERN iniciado correctamente")
         logger.info("Ventana principal creada y mostrada")
     except Exception as e:
-        logger.exception("Error creando ventana principal AppGUI: %s", e)
+        logger.exception("Error creando ventana principal AppGUIModern: %s", e)
         QMessageBox.critical(
             None,
             "Error al iniciar",

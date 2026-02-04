@@ -25,90 +25,185 @@ logger = logging.getLogger(__name__)
 # Estilos CSS del diálogo
 DIALOG_STYLE = """
 QDialog {
-    background-color: #1E1E1E;
+    background-color: #F3F4F6;
+    font-family: 'Segoe UI';
 }
 QLabel {
-    color: #E0E0E0;
+    color: #374151;
     font-size: 11pt;
 }
 QLabel[class="title"] {
     font-size: 14pt;
     font-weight: bold;
-    color: #4FC3F7;
+    color: #F59E0B;
 }
 QLabel[class="stat-label"] {
     font-size: 12pt;
     font-weight: bold;
+    color: #1F2937;
 }
 QLabel[class="stat-value"] {
     font-size: 12pt;
-    color: #81C784;
+    color: #059669;
+    font-weight: 600;
 }
 QPushButton {
-    background-color: #2196F3;
+    background-color: #F59E0B;
     color: white;
     border: none;
-    padding: 8px 16px;
+    padding: 10px 18px;
     font-size: 11pt;
-    border-radius: 4px;
+    border-radius: 6px;
+    font-weight: 600;
+    min-height: 25px;
 }
 QPushButton:hover {
-    background-color: #1976D2;
+    background-color: #D97706;
+}
+QPushButton:pressed {
+    background-color: #B45309;
 }
 QPushButton:disabled {
-    background-color: #616161;
-    color: #9E9E9E;
+    background-color: #D1D5DB;
+    color: #9CA3AF;
+}
+QPushButton[class="secondary"] {
+    background-color: #E5E7EB;
+    color: #374151;
+}
+QPushButton[class="secondary"]:hover {
+    background-color: #D1D5DB;
+}
+QPushButton[class="secondary"]:pressed {
+    background-color: #9CA3AF;
 }
 QTableWidget {
-    background-color: #2D2D2D;
-    color: #E0E0E0;
-    gridline-color: #424242;
-    border: 1px solid #424242;
+    background-color: #FFFFFF;
+    color: #1F2937;
+    gridline-color: #E5E7EB;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    alternate-background-color: #F9FAFB;
+}
+QTableWidget::item {
+    padding: 6px 8px;
+}
+QTableWidget::item:selected {
+    background-color: #FEF3C7;
+    color: #1F2937;
 }
 QHeaderView::section {
-    background-color: #366092;
-    color: white;
-    padding: 8px;
-    border: 1px solid #2D2D2D;
-    font-weight: bold;
+    background-color: #1F2937;
+    color: #FFFFFF;
+    padding: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 10pt;
 }
 QComboBox {
-    background-color: #2D2D2D;
-    color: #E0E0E0;
-    border: 1px solid #424242;
-    padding: 5px;
-    border-radius: 3px;
+    background-color: #FFFFFF;
+    color: #1F2937;
+    border: 2px solid #E5E7EB;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 10pt;
+    min-height: 25px;
 }
 QComboBox:hover {
-    border: 1px solid #2196F3;
+    border: 2px solid #F59E0B;
+}
+QComboBox:focus {
+    border: 2px solid #F59E0B;
 }
 QComboBox::drop-down {
     border: none;
+    padding-right: 10px;
+}
+QComboBox::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid #6B7280;
+    margin-right: 8px;
 }
 QComboBox QAbstractItemView {
-    background-color: #2D2D2D;
-    color: #E0E0E0;
-    selection-background-color: #2196F3;
+    background-color: #FFFFFF;
+    color: #1F2937;
+    selection-background-color: #FEF3C7;
+    selection-color: #1F2937;
+    border: 2px solid #E5E7EB;
 }
 QCheckBox {
-    color: #E0E0E0;
+    color: #374151;
     font-size: 11pt;
+    font-weight: 500;
 }
 QCheckBox::indicator {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #E5E7EB;
+    border-radius: 4px;
+    background-color: #FFFFFF;
+}
+QCheckBox::indicator:hover {
+    border: 2px solid #F59E0B;
+}
+QCheckBox::indicator:checked {
+    background-color: #F59E0B;
+    border: 2px solid #F59E0B;
+    image: none;
+}
+QCheckBox::indicator:checked:hover {
+    background-color: #D97706;
+    border: 2px solid #D97706;
 }
 QGroupBox {
-    color: #4FC3F7;
-    border: 2px solid #424242;
-    border-radius: 5px;
-    margin-top: 10px;
-    font-weight: bold;
+    color: #1F2937;
+    background-color: #FFFFFF;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    margin-top: 14px;
+    font-weight: 600;
+    font-size: 12pt;
+    padding: 15px;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 5px;
+    left: 15px;
+    padding: 0 8px;
+    background-color: #FFFFFF;
+}
+QScrollBar:vertical {
+    background-color: #F3F4F6;
+    width: 12px;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical {
+    background-color: #D1D5DB;
+    border-radius: 6px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover {
+    background-color: #9CA3AF;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background-color: #F3F4F6;
+    height: 12px;
+    border-radius: 6px;
+}
+QScrollBar::handle:horizontal {
+    background-color: #D1D5DB;
+    border-radius: 6px;
+    min-width: 30px;
+}
+QScrollBar::handle:horizontal:hover {
+    background-color: #9CA3AF;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
 }
 """
 
@@ -139,30 +234,44 @@ class DialogoExportadorPrograin(QDialog):
         self.setWindowTitle("Exportador PROGRAIN 5.0")
         self.setMinimumSize(1000, 700)
         
-        self._init_ui()
-        self._cargar_años_disponibles()
-        
         # Aplicar estilos
         self.setStyleSheet(DIALOG_STYLE)
+        
+        self._init_ui()
+        self._cargar_años_disponibles()
     
     def _init_ui(self):
         """Inicializa la interfaz gráfica"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
         # ========== SECCIÓN DE FILTROS ==========
         filtros_group = QGroupBox("FILTROS DE EXPORTACIÓN")
         filtros_layout = QVBoxLayout()
+        filtros_layout.setContentsMargins(15, 25, 15, 15)
+        filtros_layout.setSpacing(12)
         
         # Fila 1: Año y Mes
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Año:"))
+        row1.setSpacing(10)
+        
+        lbl_año = QLabel("Año:")
+        lbl_año.setStyleSheet("font-weight: 600;")
+        lbl_año.setFixedWidth(80)
+        row1.addWidget(lbl_año)
+        
         self.combo_año = QComboBox()
         self.combo_año.setMinimumWidth(120)
         row1.addWidget(self.combo_año)
         
-        row1.addSpacing(20)
+        row1.addSpacing(30)
         
-        row1.addWidget(QLabel("Mes:"))
+        lbl_mes = QLabel("Mes:")
+        lbl_mes.setStyleSheet("font-weight: 600;")
+        lbl_mes.setFixedWidth(60)
+        row1.addWidget(lbl_mes)
+        
         self.combo_mes = QComboBox()
         self.combo_mes.setMinimumWidth(150)
         self.combo_mes.addItem("Todos", "todos")
@@ -179,11 +288,11 @@ class DialogoExportadorPrograin(QDialog):
         
         # Fila 2: Checkboxes
         row2 = QHBoxLayout()
+        row2.setSpacing(30)
+        
         self.check_incluir_gastos = QCheckBox("Incluir Gastos")
         self.check_incluir_gastos.setChecked(True)
         row2.addWidget(self.check_incluir_gastos)
-        
-        row2.addSpacing(20)
         
         self.check_incluir_ingresos = QCheckBox("Incluir Ingresos")
         self.check_incluir_ingresos.setChecked(True)
@@ -191,6 +300,8 @@ class DialogoExportadorPrograin(QDialog):
         
         row2.addStretch()
         filtros_layout.addLayout(row2)
+        
+        filtros_layout.addSpacing(5)
         
         # Botón de cargar vista previa
         row3 = QHBoxLayout()
@@ -207,6 +318,8 @@ class DialogoExportadorPrograin(QDialog):
         # ========== SECCIÓN DE VISTA PREVIA ==========
         preview_group = QGroupBox("VISTA PREVIA DE TRANSACCIONES")
         preview_layout = QVBoxLayout()
+        preview_layout.setContentsMargins(15, 25, 15, 15)
+        preview_layout.setSpacing(10)
         
         self.tabla_preview = QTableWidget()
         self.tabla_preview.setColumnCount(5)
@@ -223,6 +336,8 @@ class DialogoExportadorPrograin(QDialog):
         self.tabla_preview.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla_preview.setAlternatingRowColors(True)
         self.tabla_preview.setMinimumHeight(400)
+        self.tabla_preview.verticalHeader().setVisible(False)
+        self.tabla_preview.verticalHeader().setDefaultSectionSize(32)
         
         preview_layout.addWidget(self.tabla_preview)
         preview_group.setLayout(preview_layout)
@@ -231,26 +346,32 @@ class DialogoExportadorPrograin(QDialog):
         # ========== SECCIÓN DE ESTADÍSTICAS ==========
         stats_group = QGroupBox("RESUMEN DE EXPORTACIÓN")
         stats_layout = QVBoxLayout()
+        stats_layout.setContentsMargins(15, 25, 15, 15)
+        stats_layout.setSpacing(8)
         
         self.lbl_total_trans = QLabel("Total Transacciones: 0")
         self.lbl_total_trans.setProperty("class", "stat-label")
         stats_layout.addWidget(self.lbl_total_trans)
         
         self.lbl_rango_fechas = QLabel("Rango de Fechas: -")
+        self.lbl_rango_fechas.setStyleSheet("color: #6B7280; font-size: 10pt;")
         stats_layout.addWidget(self.lbl_rango_fechas)
         
         stats_layout.addSpacing(10)
         
         self.lbl_total_gastos = QLabel(f"💸 Total Gastos (Débitos): {self.moneda_symbol} 0.00")
         self.lbl_total_gastos.setProperty("class", "stat-value")
+        self.lbl_total_gastos.setStyleSheet("color: #DC2626; font-size: 11pt; font-weight: 600;")
         stats_layout.addWidget(self.lbl_total_gastos)
         
         self.lbl_total_ingresos = QLabel(f"💰 Total Ingresos (Créditos): {self.moneda_symbol} 0.00")
         self.lbl_total_ingresos.setProperty("class", "stat-value")
+        self.lbl_total_ingresos.setStyleSheet("color: #059669; font-size: 11pt; font-weight: 600;")
         stats_layout.addWidget(self.lbl_total_ingresos)
         
         self.lbl_balance = QLabel(f"📊 Balance: {self.moneda_symbol} 0.00")
         self.lbl_balance.setProperty("class", "stat-value")
+        self.lbl_balance.setStyleSheet("color: #F59E0B; font-size: 12pt; font-weight: 700;")
         stats_layout.addWidget(self.lbl_balance)
         
         stats_group.setLayout(stats_layout)
@@ -258,6 +379,7 @@ class DialogoExportadorPrograin(QDialog):
         
         # ========== BOTONES DE ACCIÓN ==========
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(10)
         
         btn_validar = QPushButton("✅ Validar Formato")
         btn_validar.clicked.connect(self._validar_formato)
@@ -270,6 +392,7 @@ class DialogoExportadorPrograin(QDialog):
         buttons_layout.addStretch()
         
         btn_cancelar = QPushButton("❌ Cancelar")
+        btn_cancelar.setProperty("class", "secondary")
         btn_cancelar.clicked.connect(self.reject)
         buttons_layout.addWidget(btn_cancelar)
         
@@ -381,8 +504,8 @@ class DialogoExportadorPrograin(QDialog):
         Muestra transacciones en la tabla de vista previa
         
         Formato visual:
-        - Débitos: texto rojo (#D32F2F)
-        - Créditos: texto verde (#388E3C)
+        - Débitos: texto rojo (#DC2626)
+        - Créditos: texto verde (#059669)
         - Montos: alineación derecha, formato con separador de miles
         - Fechas: alineación centrada
         """
@@ -411,7 +534,7 @@ class DialogoExportadorPrograin(QDialog):
             debito_item = QTableWidgetItem(debito_texto)
             debito_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             if debito > 0:
-                debito_item.setForeground(QBrush(QColor("#D32F2F")))
+                debito_item.setForeground(QBrush(QColor("#DC2626")))
             self.tabla_preview.setItem(row, 3, debito_item)
             
             # Crédito (derecha, verde si > 0)
@@ -420,7 +543,7 @@ class DialogoExportadorPrograin(QDialog):
             credito_item = QTableWidgetItem(credito_texto)
             credito_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             if credito > 0:
-                credito_item.setForeground(QBrush(QColor("#388E3C")))
+                credito_item.setForeground(QBrush(QColor("#059669")))
             self.tabla_preview.setItem(row, 4, credito_item)
         
         logger.info(f"Tabla pintada con {len(transacciones)} transacciones")
@@ -456,9 +579,9 @@ class DialogoExportadorPrograin(QDialog):
         self.lbl_balance.setText(balance_texto)
         
         if balance >= 0:
-            self.lbl_balance.setStyleSheet("color: #81C784; font-size: 12pt; font-weight: bold;")
+            self.lbl_balance.setStyleSheet("color: #059669; font-size: 12pt; font-weight: 700;")
         else:
-            self.lbl_balance.setStyleSheet("color: #E57373; font-size: 12pt; font-weight: bold;")
+            self.lbl_balance.setStyleSheet("color: #DC2626; font-size: 12pt; font-weight: 700;")
     
     def _validar_formato(self):
         """

@@ -1,7 +1,12 @@
 """
-Interfaz gráfica principal para EQUIPOS 4.0
-Adaptada para trabajar con Firebase en lugar de SQLite
-REFACTORIZADA con Sidebar + QStackedWidget navigation (Industrial Dark Mode)
+Interfaz gráfica principal para EQUIPOS 6.0 MODERN
+Versión extendida con 4 módulos adicionales:
+- Dashboard Ejecutivo
+- Control de Combustible  
+- Cuentas por Cobrar
+- WhatsApp Business
+
+Basado en app_gui_qt.py pero con funcionalidades avanzadas.
 """
 
 from PyQt6.QtWidgets import (
@@ -35,37 +40,36 @@ from storage_manager import StorageManager  # Importar StorageManager
 from config_manager import cargar_configuracion, guardar_configuracion
 from theme_manager import ThemeManager
 from app_theme import AppTheme
-<<<<<<< Updated upstream
-=======
-from app_theme_modern import ModernTheme
-from ui_components import SidebarButton, TopBar
-from icons import get_icon
+
+# Importar tabs (ahora serán vistas en el stack)
+from dashboard_tab import DashboardTab
+from registro_alquileres_tab import RegistroAlquileresTab
+from gastos_equipos_tab import TabGastosEquipos
+from pagos_operadores_tab import TabPagosOperadores
+from dialogos.ventana_gestion_abono import VentanaGestionAbonos
+from dialogos.estado_cuenta_dialog import EstadoCuentaDialog
+
+# ========== MÓDULOS NUEVOS (VERSIÓN MODERN) ==========
 from dashboard_ejecutivo import DashboardEjecutivo
 from gestor_combustible import GestorCombustible
 from cuentas_por_cobrar import CuentasPorCobrar
 from whatsapp_integration import WhatsAppIntegration
 
->>>>>>> Stashed changes
-
-# Importar tabs (ahora serán vistas en el stack)
-from dashboard_tab import DashboardTab
-from registro_alquileres_tab_modern import RegistroAlquileresTabModern
-from gastos_equipos_tab import TabGastosEquipos
-from dialogos.ventana_gestion_abono import VentanaGestionAbonos
-from dialogos.estado_cuenta_dialog import EstadoCuentaDialog
-
 logger = logging.getLogger(__name__)
 
 # Constantes de aplicación
-APP_VERSION = "5.0"
+APP_VERSION = "6.0 MODERN"
 APP_NAME = "EQUIPOS"
 APP_FULL_NAME = f"{APP_NAME} {APP_VERSION}"
 
 
-class AppGUI(QMainWindow):
+class AppGUIModern(QMainWindow):
     """
-    Ventana principal de la aplicación EQUIPOS 5.0.
-    Gestiona vistas, menús y configuración general usando Sidebar + QStackedWidget.
+    Ventana principal MODERN de EQUIPOS 6.0.
+    Incluye 4 módulos adicionales: Dashboard Ejecutivo, Combustible, 
+    Cuentas por Cobrar y WhatsApp Business.
+    
+    Basado en app_gui_qt.py pero con funcionalidades extendidas.
     """
 
     def __init__(
@@ -77,16 +81,6 @@ class AppGUI(QMainWindow):
         parent=None,
     ):
         super().__init__(parent)
-<<<<<<< Updated upstream
-=======
-        
-        # ========== APLICAR TEMA MODERNO ==========
-        self.setStyleSheet(ModernTheme.get_stylesheet())
-        
-        self.setWindowTitle("EQUIPOS 6.0 - Sistema de Gestión")
-        self.setMinimumSize(1400, 850)
-        self.showMaximized()
->>>>>>> Stashed changes
 
         # Gestores inyectados
         self.fm: FirebaseManager = firebase_manager
@@ -103,9 +97,8 @@ class AppGUI(QMainWindow):
         self.subcategorias_mapa: dict[str, str] = {}
         self.proyectos_mapa: dict[str, str] = {}
 
-<<<<<<< Updated upstream
         # Configuración de ventana
-        self.setWindowTitle(APP_FULL_NAME)
+        self.setWindowTitle("EQUIPOS 6.0 MODERN - Sistema de Gestión Avanzado")
         self.resize(1400, 800)
 
         # Crear interfaz con sidebar navigation
@@ -115,211 +108,6 @@ class AppGUI(QMainWindow):
         # Cargar datos iniciales
         QTimer.singleShot(100, self._cargar_datos_iniciales)
 
-=======
-        # Inicializar estructuras
-        self.nav_buttons: dict = {}
-        self.vistas: dict = {}
-
-        # ========== CREAR INTERFAZ MODERNA ==========
-        self._setup_modern_ui()
-        
-        # ✅ AGREGAR ESTA LÍNEA: Crear el menú
-        self._crear_menu()
-        
-        # Cargar datos iniciales
-        QTimer.singleShot(100, self._cargar_datos_iniciales)
-
-    def _setup_modern_ui(self):
-        """
-        Configura la interfaz moderna con sidebar lateral.
-        Layout: Sidebar (260px) + Content Area
-        """
-        # Widget central
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        
-        # Layout principal horizontal (sin márgenes)
-        main_layout = QHBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        
-        # ========== SIDEBAR (260px fijo) ==========
-        self.sidebar = self._crear_sidebar()
-        main_layout.addWidget(self.sidebar)
-        
-        # ========== CONTENT AREA ==========
-        content_area = QWidget()
-        content_layout = QVBoxLayout(content_area)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(0)
-        
-        # TopBar
-        self.topbar = TopBar("Dashboard", show_search=True)
-        self.topbar.searchRequested.connect(self._on_search)
-        content_layout.addWidget(self.topbar)
-        
-        # QStackedWidget para las vistas
-        self.stackedWidget = QStackedWidget()  # ← SIN GUIÓN BAJO
-        self.stackedWidget.setStyleSheet(f"""
-            QStackedWidget {{
-                background-color: {ModernTheme.COLORS['bg_body']};
-            }}
-        """)
-        content_layout.addWidget(self.stackedWidget)
-        
-        main_layout.addWidget(content_area)
-        
-        # ========== CREAR VISTAS ==========
-        self._crear_vistas()
-
-   
-    def _crear_vistas(self):
-        """Crea las vistas y las agrega al QStackedWidget"""
-        
-        # ========== VISTA: DASHBOARD ==========
-        try:
-            from dashboard_tab import DashboardTab
-            self.dashboard_tab = DashboardTab(self.fm, self.config, self.sm)
-            if hasattr(self.dashboard_tab, 'recargar_dashboard'):
-                self.dashboard_tab.recargar_dashboard.connect(self._refrescar_dashboard)
-            scroll_dashboard = QScrollArea()
-            scroll_dashboard.setWidgetResizable(True)
-            scroll_dashboard.setWidget(self.dashboard_tab)
-            scroll_dashboard.setStyleSheet("QScrollArea { border: none; }")
-            self.stackedWidget.addWidget(scroll_dashboard)
-            self.vistas = {"vista_dashboard": 0}
-        except Exception as e:
-            print(f"Error creando Dashboard: {e}")
-            placeholder = QLabel("Dashboard en construcción")
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.stackedWidget.addWidget(placeholder)
-            self.vistas = {"vista_dashboard": 0}
-        
-        # ========== VISTA: ALQUILERES ==========
-        try:
-            from registro_alquileres_tab_modern import RegistroAlquileresTabModern
-            self.alquileres_tab = RegistroAlquileresTabModern(self.fm, self.config, self.sm)
-            if hasattr(self.alquileres_tab, 'recargar_dashboard'):
-                self.alquileres_tab.recargar_dashboard.connect(self._refrescar_dashboard)
-            self.stackedWidget.addWidget(self.alquileres_tab)
-            self.vistas["vista_alquileres"] = 1
-        except Exception as e:
-            print(f"Error creando Alquileres: {e}")
-            placeholder = QLabel("Alquileres en construcción")
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.stackedWidget.addWidget(placeholder)
-            self.vistas["vista_alquileres"] = 1
-        
-        # ========== VISTA: GASTOS ==========
-        try:
-            from gastos_tab_modern import GastosTabModern
-            self.gastos_tab = GastosTabModern(self.fm, self.config, self.sm)
-            if hasattr(self.gastos_tab, 'recargar_dashboard'):
-                self.gastos_tab.recargar_dashboard.connect(self._refrescar_dashboard)
-            self.stackedWidget.addWidget(self.gastos_tab)
-            self.vistas["vista_gastos"] = 2
-        except Exception as e:
-            print(f"Error creando Gastos: {e}")
-            placeholder = QLabel("Gastos en construcción")
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.stackedWidget.addWidget(placeholder)
-            self.vistas["vista_gastos"] = 2
-        
-        # ========== VISTA: PAGOS OPERADORES ==========
-        try:
-            from tab_pagos_operadores_modern import TabPagosOperadoresModern
-            
-            # ✅ Pasar storage_manager para URLs firmadas
-            self.pagos_tab = TabPagosOperadoresModern(
-                firebase_manager=self.fm,
-                storage_manager=self.sm,  # ✅ CRÍTICO: Necesario para URLs firmadas
-                parent=self
-            )
-            
-            # ✅ Conectar señal para refrescar dashboard
-            if hasattr(self.pagos_tab, 'recargar_dashboard'):
-                self.pagos_tab.recargar_dashboard.connect(self._refrescar_dashboard)
-            
-            # Agregar scroll area
-            scroll_pagos = QScrollArea()
-            scroll_pagos.setWidgetResizable(True)
-            scroll_pagos.setWidget(self.pagos_tab)
-            scroll_pagos.setStyleSheet("QScrollArea { border: none; }")
-            
-            self.stackedWidget.addWidget(scroll_pagos)
-            self.vistas["vista_pagos_operadores"] = 3
-            logger.info("✅ Vista Pagos Operadores Modern cargada")
-            
-        except Exception as e:
-            logger.error(f"Error creando Pagos Operadores: {e}", exc_info=True)
-            placeholder = QLabel("Pagos Operadores\n\n❌ Error al cargar")
-            placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            placeholder.setStyleSheet(f"color: {ModernTheme.COLORS['text_muted']}; font-size: 16px;")
-            self.stackedWidget.addWidget(placeholder)
-            self.vistas["vista_pagos_operadores"] = 3
-
-    def _cambiar_vista(self, vista_nombre: str, titulo: str):
-        """
-        Cambia la vista activa y actualiza el TopBar.
-        
-        Args:
-            vista_nombre: Nombre interno de la vista (ej: 'vista_dashboard')
-            titulo: Título a mostrar en el TopBar (ej: 'Dashboard')
-        """
-        # Obtener índice de la vista
-        index = self.vistas.get(vista_nombre)
-        if index is None:
-            return
-        
-        # Cambiar vista en el stacked widget
-        self.stackedWidget.setCurrentIndex(index)
-        
-        # Actualizar título del TopBar
-        self.topbar.setTitle(titulo)
-        
-        # Actualizar estado de botones del sidebar
-        for key, btn in self.nav_buttons.items():  # ← Requiere diccionario
-            btn.setActive(key == vista_nombre)
-
-    def _on_search(self, text: str):
-        """Callback cuando se realiza una búsqueda"""
-        # TODO: Implementar lógica de búsqueda global
-        print(f"Buscando: {text}")
-
-    def _abrir_configuracion(self):
-        """Abre el diálogo de configuración"""
-        try:
-            from dialogos.configuracion_dialog import ConfiguracionDialog
-            dlg = ConfiguracionDialog(self.fm, self.config, parent=self)
-            if dlg.exec():
-                # Recargar configuración si cambió
-                pass
-        except ImportError:
-            # Si no existe el diálogo, mostrar mensaje
-            QMessageBox.information(
-                self,
-                "Configuración",
-                "El diálogo de configuración aún no está implementado.\n\n"
-                "Funcionalidades disponibles:\n"
-                "• Cambio de moneda\n"
-                "• Gestión de proyecto\n"
-                "• Backup de datos"
-            )
-        except Exception as e:
-            QMessageBox.warning(
-                self,
-                "Error",
-                f"No se pudo abrir la configuración:\n{e}"
-            )
-
-    def _refrescar_dashboard(self):
-        """Refresca los datos del dashboard"""
-        if hasattr(self, 'dashboard_tab'):
-            self.dashboard_tab.refrescar_datos()
-
-
-
->>>>>>> Stashed changes
     # ------------------------------------------------------------------ Interfaz Principal con Sidebar
 
     def _crear_interfaz_principal(self):
@@ -384,14 +172,21 @@ class AppGUI(QMainWindow):
         self.nav_buttons = []
         
         nav_items = [
-            ("Dashboard", 0, "📊"),
-            ("Alquileres", 1, "📋"),
-            ("Gastos", 2, "💰"),
-            ("Pagos", 3, "💳")
+            # Módulos originales
+            ("Dashboard", "📊", "vista_dashboard"),
+            ("Alquileres", "📋", "vista_alquileres"),
+            ("Gastos", "💰", "vista_gastos"),
+            ("Pagos", "💳", "vista_pagos_operadores"),
+            
+            # Módulos nuevos (MODERN)
+            ("Dashboard Ejecutivo", "📊", "vista_dashboard_ejecutivo"),
+            ("Combustible", "⛽", "vista_combustible"),
+            ("Cuentas x Cobrar", "💳", "vista_cuentas_cobrar"),
+            ("WhatsApp", "📱", "vista_whatsapp"),
         ]
         
-        for text, index, icon in nav_items:
-            btn = self._crear_boton_navegacion(f"{icon}  {text}", index)
+        for text, icon, vista_nombre in nav_items:
+            btn = self._crear_boton_navegacion(f"{icon}  {text}", vista_nombre)
             self.nav_buttons.append(btn)
             layout.addWidget(btn)
         
@@ -405,7 +200,7 @@ class AppGUI(QMainWindow):
         
         return sidebar
     
-    def _crear_boton_navegacion(self, text: str, index: int):
+    def _crear_boton_navegacion(self, text: str, vista_nombre: str):
         """
         Crea un botón de navegación para el sidebar
         """
@@ -437,14 +232,14 @@ class AppGUI(QMainWindow):
             }}
         """)
         
-        # Conectar el botón para cambiar la vista (capture index by value)
-        btn.clicked.connect(lambda checked=False, i=index: self._cambiar_vista(i))
+        # Conectar el botón para cambiar la vista (capture vista_nombre by value)
+        btn.clicked.connect(lambda checked=False, vn=vista_nombre: self._cambiar_vista_por_nombre(vn))
         
         return btn
     
     def _cambiar_vista(self, index: int):
         """
-        Cambia la vista actual del QStackedWidget y actualiza el estado de los botones
+        Cambia la vista actual del QStackedWidget por índice y actualiza el estado de los botones
         """
         self.stackedWidget.setCurrentIndex(index)
         
@@ -452,28 +247,59 @@ class AppGUI(QMainWindow):
         for i, btn in enumerate(self.nav_buttons):
             btn.setChecked(i == index)
     
+    def _cambiar_vista_por_nombre(self, vista_nombre: str):
+        """
+        Cambia la vista actual del QStackedWidget por nombre y actualiza el estado de los botones
+        """
+        if vista_nombre in self.vistas:
+            index = self.vistas[vista_nombre]
+            self.stackedWidget.setCurrentIndex(index)
+            
+            # Actualizar estado de botones
+            for btn in self.nav_buttons:
+                btn.setChecked(False)
+            
+            # Activar el botón correcto basado en el nombre de la vista
+            nav_items = [
+                "vista_dashboard", "vista_alquileres", "vista_gastos", "vista_pagos_operadores",
+                "vista_dashboard_ejecutivo", "vista_combustible", "vista_cuentas_cobrar", "vista_whatsapp"
+            ]
+            if vista_nombre in nav_items:
+                btn_index = nav_items.index(vista_nombre)
+                if btn_index < len(self.nav_buttons):
+                    self.nav_buttons[btn_index].setChecked(True)
+    
     def _crear_vistas(self):
         """
         Crea las vistas (antiguos tabs) y las añade al QStackedWidget
         """
+        # Diccionario para mapear nombres de vistas a índices
+        self.vistas = {}
+        
         try:
+            # ========== VISTAS ORIGINALES ==========
+            
             # Dashboard
             self.dashboard_view = DashboardTab(self.fm)
-            self.stackedWidget.addWidget(self.dashboard_view)
+            idx = self.stackedWidget.addWidget(self.dashboard_view)
+            self.vistas["vista_dashboard"] = idx
 
             # Registro de Alquileres
             self.registro_view = RegistroAlquileresTab(
                 self.fm, storage_manager=self.sm
             )
-            self.stackedWidget.addWidget(self.registro_view)
+            idx = self.stackedWidget.addWidget(self.registro_view)
+            self.vistas["vista_alquileres"] = idx
 
             # Gastos de Equipos
             self.gastos_view = TabGastosEquipos(self.fm, storage_manager=self.sm)
-            self.stackedWidget.addWidget(self.gastos_view)
+            idx = self.stackedWidget.addWidget(self.gastos_view)
+            self.vistas["vista_gastos"] = idx
 
             # Pagos a Operadores
             self.pagos_view = TabPagosOperadores(self.fm, storage_manager=self.sm)
-            self.stackedWidget.addWidget(self.pagos_view)
+            idx = self.stackedWidget.addWidget(self.pagos_view)
+            self.vistas["vista_pagos_operadores"] = idx
 
             # Crear referencias legacy para compatibilidad con código existente
             self.dashboard_tab = self.dashboard_view
@@ -481,8 +307,86 @@ class AppGUI(QMainWindow):
             self.gastos_tab = self.gastos_view
             self.pagos_tab = self.pagos_view
 
+            # ========== VISTAS NUEVAS (VERSIÓN MODERN) ==========
+
+            # === DASHBOARD EJECUTIVO ===
+            try:
+                from PyQt6.QtWidgets import QScrollArea
+                scroll_dashboard_ejecutivo = QScrollArea()
+                self.dashboard_ejecutivo = DashboardEjecutivo(self.fm, self.config)
+                scroll_dashboard_ejecutivo.setWidgetResizable(True)
+                scroll_dashboard_ejecutivo.setWidget(self.dashboard_ejecutivo)
+                scroll_dashboard_ejecutivo.setStyleSheet("QScrollArea { border: none; }")
+                idx = self.stackedWidget.addWidget(scroll_dashboard_ejecutivo)
+                self.vistas["vista_dashboard_ejecutivo"] = idx
+                logger.info("✅ Dashboard Ejecutivo cargado")
+            except Exception as e:
+                logger.error(f"Error cargando Dashboard Ejecutivo: {e}", exc_info=True)
+                placeholder = QLabel("Dashboard Ejecutivo\n\n❌ Error al cargar")
+                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                placeholder.setStyleSheet(f"color: {AppTheme.COLORS['text_secondary']}; font-size: 16px;")
+                idx = self.stackedWidget.addWidget(placeholder)
+                self.vistas["vista_dashboard_ejecutivo"] = idx
+
+            # === COMBUSTIBLE ===
+            try:
+                from PyQt6.QtWidgets import QScrollArea
+                scroll_combustible = QScrollArea()
+                self.combustible_tab = GestorCombustible(self.fm, self.config)
+                scroll_combustible.setWidgetResizable(True)
+                scroll_combustible.setWidget(self.combustible_tab)
+                scroll_combustible.setStyleSheet("QScrollArea { border: none; }")
+                idx = self.stackedWidget.addWidget(scroll_combustible)
+                self.vistas["vista_combustible"] = idx
+                logger.info("✅ Combustible cargado")
+            except Exception as e:
+                logger.error(f"Error cargando Combustible: {e}", exc_info=True)
+                placeholder = QLabel("Control de Combustible\n\n❌ Error al cargar")
+                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                placeholder.setStyleSheet(f"color: {AppTheme.COLORS['text_secondary']}; font-size: 16px;")
+                idx = self.stackedWidget.addWidget(placeholder)
+                self.vistas["vista_combustible"] = idx
+
+            # === CUENTAS POR COBRAR ===
+            try:
+                from PyQt6.QtWidgets import QScrollArea
+                scroll_cuentas = QScrollArea()
+                self.cuentas_tab = CuentasPorCobrar(self.fm, self.config)
+                scroll_cuentas.setWidgetResizable(True)
+                scroll_cuentas.setWidget(self.cuentas_tab)
+                scroll_cuentas.setStyleSheet("QScrollArea { border: none; }")
+                idx = self.stackedWidget.addWidget(scroll_cuentas)
+                self.vistas["vista_cuentas_cobrar"] = idx
+                logger.info("✅ Cuentas por Cobrar cargado")
+            except Exception as e:
+                logger.error(f"Error cargando Cuentas por Cobrar: {e}", exc_info=True)
+                placeholder = QLabel("Cuentas por Cobrar\n\n❌ Error al cargar")
+                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                placeholder.setStyleSheet(f"color: {AppTheme.COLORS['text_secondary']}; font-size: 16px;")
+                idx = self.stackedWidget.addWidget(placeholder)
+                self.vistas["vista_cuentas_cobrar"] = idx
+
+            # === WHATSAPP BUSINESS ===
+            try:
+                from PyQt6.QtWidgets import QScrollArea
+                scroll_whatsapp = QScrollArea()
+                self.whatsapp_tab = WhatsAppIntegration(self.fm, self.config)
+                scroll_whatsapp.setWidgetResizable(True)
+                scroll_whatsapp.setWidget(self.whatsapp_tab)
+                scroll_whatsapp.setStyleSheet("QScrollArea { border: none; }")
+                idx = self.stackedWidget.addWidget(scroll_whatsapp)
+                self.vistas["vista_whatsapp"] = idx
+                logger.info("✅ WhatsApp Business cargado")
+            except Exception as e:
+                logger.error(f"Error cargando WhatsApp: {e}", exc_info=True)
+                placeholder = QLabel("WhatsApp Business\n\n❌ Error al cargar")
+                placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                placeholder.setStyleSheet(f"color: {AppTheme.COLORS['text_secondary']}; font-size: 16px;")
+                idx = self.stackedWidget.addWidget(placeholder)
+                self.vistas["vista_whatsapp"] = idx
+
             # Vista inicial: Dashboard
-            self._cambiar_vista(0)
+            self._cambiar_vista_por_nombre("vista_dashboard")
 
         except Exception as e:
             logger.exception("Error creando vistas")
@@ -684,7 +588,7 @@ class AppGUI(QMainWindow):
                     "- Credenciales incorrectas\n\n"
                     "Por favor, revise los logs y reinicie la aplicación.",
                 )
-            self.setWindowTitle("EQUIPOS 4.0 - ERROR DE CARGA")
+            self.setWindowTitle("EQUIPOS 6.0 MODERN - ERROR DE CARGA")
             QTimer.singleShot(1000, self.close)
 
     # ==================== Menú Archivo ====================
@@ -1124,9 +1028,9 @@ class AppGUI(QMainWindow):
     def _acerca_de(self):
         """Muestra información sobre la aplicación"""
         mensaje = """
-        <h2>EQUIPOS 4.0</h2>
+        <h2>EQUIPOS 6.0 MODERN</h2>
         <p><b>Sistema de Gestión de Alquiler de Equipos Pesados</b></p>
-        <p>Versión: 4.0.0</p>
+        <p>Versión: 6.0 MODERN</p>
         <p>Desarrollado por: ZOEC Civil</p>
         <p>Tecnologías:</p>
         <ul>
@@ -1137,7 +1041,7 @@ class AppGUI(QMainWindow):
         <p><i>© 2025 ZOEC Civil. Todos los derechos reservados.</i></p>
         """
 
-        QMessageBox.about(self, "Acerca de EQUIPOS 4.0", mensaje)
+        QMessageBox.about(self, "Acerca de EQUIPOS 6.0 MODERN", mensaje)
 
     def _abrir_documentacion(self):
         """Abre la documentación"""
@@ -1767,7 +1671,7 @@ class AppGUI(QMainWindow):
             )
 
             self.setWindowTitle(
-                f"EQUIPOS 4.0 - {len(self.equipos_mapa)} Equipos Totales"
+                f"EQUIPOS 6.0 MODERN - {len(self.equipos_mapa)} Equipos Totales"
             )
 
             mapas_completos = {
@@ -1834,7 +1738,7 @@ class AppGUI(QMainWindow):
                     "- Credenciales incorrectas\n\n"
                     "Por favor, revise los logs y reinicie la aplicación.",
                 )
-            self.setWindowTitle("EQUIPOS 4.0 - ERROR DE CARGA")
+            self.setWindowTitle("EQUIPOS 6.0 MODERN - ERROR DE CARGA")
             QTimer.singleShot(1000, self.close)
 
     # ------------------- Reporte de Rendimientos -------------------
